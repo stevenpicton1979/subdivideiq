@@ -53,6 +53,7 @@ Use $func$ not $$ for Supabase SQL functions.
 - Write scripts/load-parcels.js
 - Transform to WGS84, load into subdivide_parcels
 - Verify: query for 6 Glenheaton Court Carindale — should return lot polygon + ~1086m² area
+- NOTE: Full Brisbane loads (load-parcels.js ~897k records, load-sw-pipes.js ~291k records) — scripts written and tested, run manually when time permits (~50 min total).
 
 ### [x] S1-4: Load BCC stormwater data
 - Download stormwater pipes GeoJSON from BCC Open Data
@@ -72,12 +73,12 @@ Use $func$ not $$ for Supabase SQL functions.
 
 ## SPRINT 2 — Feasibility Checks Engine
 
-### [ ] S2-1: Zone check (api/check-zone.js)
+### [x] S2-1: Zone check (api/check-zone.js)
 - Query ZoneIQ zone_geometries (already in Supabase)
 - Output: zone_code, zone_name, min_lot_size_m2
 - Logic: both new lots must meet minimum → PASS/MARGINAL/FAIL
 
-### [ ] S2-2: Flood overlay check (api/check-flood.js)
+### [x] S2-2: Flood overlay check (api/check-flood.js)
 - Query ZoneIQ flood_overlays (already in Supabase)
 - Calculate % of lot covered by each flood planning category
 - Category 1-2 → RED
@@ -86,7 +87,7 @@ Use $func$ not $$ for Supabase SQL functions.
 - Overland flow present → AMBER
 - Output includes plain English consequence and build form flag
 
-### [ ] S2-3: Slope/elevation check (api/check-elevation.js)
+### [x] S2-3: Slope/elevation check (api/check-elevation.js)
 - Sample 9 points across lot bounding box (3x3 grid)
 - Query QLD ArcGIS ImageServer for each point:
   https://spatial-img.information.qld.gov.au/arcgis/rest/services/Elevation/QldDem/ImageServer/identify
@@ -95,22 +96,22 @@ Use $func$ not $$ for Supabase SQL functions.
 - If flood overlay present: compare min_elev to flood immunity level
   If min_elev < (flood_level + 0.5m) → flag "groundworks unlikely to achieve immunity, stilts likely"
 
-### [ ] S2-4: Stormwater proximity check (api/check-stormwater.js)
+### [x] S2-4: Stormwater proximity check (api/check-stormwater.js)
 - ST_DWithin query on subdivide_sw_pipes — nearest pipe distance
 - ST_DWithin query on subdivide_sw_drains — overland flow proximity
 - Pipe <30m → GREEN, 30-80m → AMBER, >80m → AMBER/RED
 - Mapped overland flow within 100m → AMBER
 
-### [ ] S2-5: Character overlay check (api/check-character.js)
+### [x] S2-5: Character overlay check (api/check-character.js)
 - Query ZoneIQ character_overlays (already in Supabase)
 - Output: in_character_overlay, overlay_name, demolition_note
 
-### [ ] S2-6: Lot size viability (api/check-lotsize.js)
+### [x] S2-6: Lot size viability (api/check-lotsize.js)
 - Calculate indicative split: 60/40 front/rear and battle-axe options
 - Check each new lot against zone minimum
 - Output: split_viable, front_lot_m2, rear_lot_m2, battle_axe_viable, frontage_width_m
 
-### [ ] S2-7: Master feasibility aggregator (api/feasibility.js)
+### [x] S2-7: Master feasibility aggregator (api/feasibility.js)
 - Call all checks in parallel via Promise.all
 - Any RED → overall RED
 - 2+ AMBER → overall AMBER (leaning RED)
