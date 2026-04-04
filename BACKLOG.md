@@ -181,6 +181,12 @@ HTML → PDF with:
 ### [ ] S4-4: Update portfoliostate repo
 - Update STATE.md with live SubdivideIQ details once launched
 
+### [ ] S4-5: Jest smoke tests
+- Install Jest
+- Test api/geocode.js returns valid parcel response for "6 Glenheaton Court Carindale"
+- Test api/feasibility.js returns GREEN, AMBER, or RED for known Brisbane addresses
+- Tests must pass before launch
+
 ---
 
 ## FUTURE SPRINTS (do not build yet)
