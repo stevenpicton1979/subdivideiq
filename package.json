@@ -1,0 +1,19 @@
+{
+  "name": "subdivideiq",
+  "version": "1.0.0",
+  "description": "SubdivideIQ — Subdivision feasibility pre-screen for Brisbane homeowners. Vanilla HTML/CSS/JS + Vercel serverless Node.js.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.4.0"
+  },
+  "devDependencies": {
+    "pg": "^8.20.0"
+  }
+}

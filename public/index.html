@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SubdivideIQ — Subdivision Feasibility for Brisbane Homeowners</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111; }
+    header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    header span { color: #6b7280; font-size: 0.875rem; }
+    .hero { max-width: 640px; margin: 4rem auto 2rem; padding: 0 1.5rem; text-align: center; }
+    .hero h2 { font-size: 2rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem; }
+    .hero p { color: #4b5563; font-size: 1.1rem; margin-bottom: 2rem; }
+    .search-box { background: #fff; border: 2px solid #e5e7eb; border-radius: 12px; padding: 1.5rem; max-width: 540px; margin: 0 auto; }
+    .search-box label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
+    .search-box input { width: 100%; padding: 0.75rem 1rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; }
+    .search-box input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .btn { width: 100%; padding: 0.875rem; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .btn:hover { background: #1d4ed8; }
+    .how-it-works { max-width: 640px; margin: 3rem auto; padding: 0 1.5rem; }
+    .how-it-works h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; text-align: center; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .step { text-align: center; padding: 1rem; }
+    .step .num { width: 2rem; height: 2rem; background: #2563eb; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; margin: 0 auto 0.75rem; }
+    .step p { font-size: 0.875rem; color: #4b5563; }
+    .price-note { text-align: center; color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem; }
+    #autocomplete-results { position: absolute; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; z-index: 10; max-height: 200px; overflow-y: auto; display: none; }
+    #autocomplete-results div { padding: 0.75rem 1rem; cursor: pointer; font-size: 0.9rem; }
+    #autocomplete-results div:hover { background: #f3f4f6; }
+    .search-wrap { position: relative; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SubdivideIQ</h1>
+    <span>Brisbane subdivision feasibility</span>
+  </header>
+
+  <div class="hero">
+    <h2>Can you subdivide your block?</h2>
+    <p>Get a traffic light feasibility report in 60 seconds — before you spend $7,500 finding out the hard way.</p>
+
+    <div class="search-box">
+      <label for="address-input">Enter your Brisbane address</label>
+      <div class="search-wrap">
+        <input
+          type="text"
+          id="address-input"
+          placeholder="e.g. 6 Glenheaton Court, Carindale"
+          autocomplete="off"
+        />
+        <div id="autocomplete-results"></div>
+      </div>
+      <button class="btn" id="check-btn">Check my block — $79</button>
+      <p class="price-note">Instant report · PDF emailed · No planning knowledge required</p>
+    </div>
+
+    <div class="how-it-works" style="margin-top:2rem;">
+      <h3>How it works</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <p>Enter your address — we check zone, overlays, lot size, slope and drainage</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <p>Pay $79 — see your GREEN / AMBER / RED result with plain-English explanations</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <p>Get your PDF report — know exactly which consultants to call and what it'll cost</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('address-input')
+    const results = document.getElementById('autocomplete-results')
+    const btn = document.getElementById('check-btn')
+    let selectedAddress = null
+    let selectedLat = null
+    let selectedLng = null
+
+    let debounceTimer
+    input.addEventListener('input', () => {
+      clearTimeout(debounceTimer)
+      const q = input.value.trim()
+      if (q.length < 4) { results.style.display = 'none'; return }
+      debounceTimer = setTimeout(() => fetchSuggestions(q), 300)
+    })
+
+    async function fetchSuggestions(q) {
+      try {
+        const res = await fetch(`/api/geocode?address=${encodeURIComponent(q)}&suggest=true`)
+        const data = await res.json()
+        if (!data.suggestions || !data.suggestions.length) { results.style.display = 'none'; return }
+        results.innerHTML = ''
+        data.suggestions.forEach(s => {
+          const div = document.createElement('div')
+          div.textContent = s.place_name
+          div.addEventListener('click', () => {
+            input.value = s.place_name
+            selectedAddress = s.place_name
+            selectedLat = s.lat
+            selectedLng = s.lng
+            results.style.display = 'none'
+          })
+          results.appendChild(div)
+        })
+        results.style.display = 'block'
+      } catch (e) {
+        results.style.display = 'none'
+      }
+    }
+
+    document.addEventListener('click', e => {
+      if (!results.contains(e.target) && e.target !== input) {
+        results.style.display = 'none'
+      }
+    })
+
+    btn.addEventListener('click', async () => {
+      const address = selectedAddress || input.value.trim()
+      if (!address) { alert('Please enter your property address'); return }
+      btn.disabled = true
+      btn.textContent = 'Checking address...'
+      try {
+        const res = await fetch('/api/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, lat: selectedLat, lng: selectedLng })
+        })
+        const data = await res.json()
+        if (!data.lot) {
+          btn.disabled = false
+          btn.textContent = 'Check my block — $79'
+          alert('Address not found in Brisbane parcel data. Please check the address and try again.')
+          return
+        }
+        // Store parcel data and proceed to checkout
+        sessionStorage.setItem('subdivideiq_parcel', JSON.stringify(data))
+        window.location.href = '/api/checkout?address=' + encodeURIComponent(address)
+      } catch (e) {
+        btn.disabled = false
+        btn.textContent = 'Check my block — $79'
+        alert('Something went wrong. Please try again.')
+      }
+    })
+  </script>
+</body>
+</html>
