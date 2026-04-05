@@ -19,7 +19,7 @@
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
-const BASE_URL = process.env.BASE_URL || 'https://subdivideiq.com.au'
+const BASE_URL = process.env.BASE_URL || 'https://subdivideiq.vercel.app'
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', (process.env.ALLOWED_ORIGIN || '*').trim())
