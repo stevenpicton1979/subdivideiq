@@ -11,7 +11,11 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "dotenv": "^17.4.0"
+    "@supabase/supabase-js": "^2.101.1",
+    "dotenv": "^17.4.0",
+    "pdfkit": "^0.15.2",
+    "resend": "^3.5.0",
+    "stripe": "^14.25.0"
   },
   "devDependencies": {
     "pg": "^8.20.0"
