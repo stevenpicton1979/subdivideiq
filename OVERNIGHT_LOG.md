@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-04-06 — Full State Sync (Option C)
+
+### Changes made
+
+**portfoliostate:**
+- STATE.md rewritten from scratch — overview only, one section per product
+- SUBDIVIDEIQ_BACKLOG.md deleted (stale duplicate)
+- CLEAROFFER_BACKLOG.md deleted (stale duplicate)
+- ZONEIQ_BACKLOG.md deleted (stale duplicate)
+- commit c20ebdf pushed
+
+**subdivideiq/BACKLOG.md:**
+- Full rewrite reflecting production reality as of 6 April 2026
+- All Sprints 1-4 tasks correctly marked [x]/[ ]
+- S4-7 updated: Option C adopted, no longer copies to portfoliostate
+- ARCH-1, DOMAIN, LAUNCH tasks added
+- commit 259cf9e pushed
+
+**zoneiq/BACKLOG.md:**
+- Sprints 11 (Ipswich), 12 (Logan), 13 (Redland) marked [x]
+- Total: 189,751 polygons across 7 councils documented
+- Sprint 14 marked [ ] in progress
+- commit fab174e pushed
+
+### Self-test results (Task 6)
+
+| Check | URL | Expected | Result |
+|-------|-----|----------|--------|
+| STATE.md — SubdivideIQ | portfoliostate/main/STATE.md | "PIPELINE CONFIRMED WORKING" | PASS ✅ |
+| STATE.md — ZoneIQ | portfoliostate/main/STATE.md | Logan and Redland present | PASS ✅ |
+| STATE.md — no stale ref | portfoliostate/main/STATE.md | No SUBDIVIDEIQ_BACKLOG.md reference | PASS ✅ |
+| subdivideiq BACKLOG | subdivideiq/main/BACKLOG.md | ARCH-1 present, S1-S4 [x] | PASS ✅ |
+| zoneiq BACKLOG | zoneiq/main/BACKLOG.md | Sprints 11-13 [x], Sprint 14 [ ] | PASS ✅ |
+| SUBDIVIDEIQ_BACKLOG.md removed | portfoliostate/main/SUBDIVIDEIQ_BACKLOG.md | HTTP 404 | PASS ✅ |
+
+All 6 checks PASS.
+
+---
+
 ## 2026-04-05 — PL-1 Traffic Light Calibration + PDF Quality + S4-3 Staging Test
 
 ### Task 1: PL-1 Traffic light calibration
