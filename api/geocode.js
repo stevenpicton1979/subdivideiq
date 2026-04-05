@@ -100,7 +100,7 @@ async function geocodeSuggest(query) {
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json` +
     `?access_token=${MAPBOX_TOKEN}` +
     `&country=AU` +
-    `&bbox=152.6,27.9,153.6,26.9` + // Brisbane/SEQ bounding box
+    `&bbox=152.6,-28.2,153.6,-26.8` + // Brisbane/SEQ bounding box
     `&types=address` +
     `&limit=5`
 
