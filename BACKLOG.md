@@ -1,6 +1,6 @@
 # SubdivideIQ — BACKLOG
 Last updated: 6 April 2026
-Repo: stevenpicton1979/subdivideiq ✅ CREATED
+Repo: stevenpicton1979/subdivideiq
 
 ## How to use this file
 Start Claude Code in the subdivideiq repo and say:
@@ -8,116 +8,35 @@ Start Claude Code in the subdivideiq repo and say:
 
 ---
 
-## SPRINT 1 — Foundation & Lot Data
+## SPRINT 1 — Foundation & Lot Data ✅ COMPLETE
 
 ### [x] S1-1: Create repo and project scaffold
-- Create repo: stevenpicton1979/subdivideiq on GitHub
-- Copy scaffold from buyerside repo (same vanilla HTML/CSS/JS + Vercel serverless structure)
-- Set up Vercel project linked to repo
-- Create .env.example with: SUPABASE_URL, SUPABASE_SERVICE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY, MAPBOX_TOKEN
-- Create CLAUDE.md with trusted domains
-
-### [x] S1-2: Supabase tables
-In project fzykfxesznyiigoyeyed, create:
-
-subdivide_parcels:
-- id bigserial primary key
-- lot text, plan text, address text, area_m2 numeric
-- geom geometry(MultiPolygon, 4326)
-- GiST index on geom
-
-subdivide_sw_pipes:
-- id bigserial primary key
-- pipe_id text, material text, diameter_mm numeric
-- geom geometry(LineString, 4326)
-- GiST index on geom
-
-subdivide_sw_drains:
-- id bigserial primary key
-- drain_id text, drain_type text
-- geom geometry(MultiLineString, 4326)
-- GiST index on geom
-
-subdivide_reports:
-- id bigserial primary key
-- address text, lot text, plan text
-- result text (GREEN/AMBER/RED)
-- flags jsonb
-- stripe_session_id text, email text
-- created_at timestamptz default now()
-
-Use $func$ not $$ for Supabase SQL functions.
-
+### [x] S1-2: Supabase tables — subdivide_parcels, subdivide_sw_pipes, subdivide_sw_drains, subdivide_reports
 ### [x] S1-3: Load BCC parcel data
-- Download GeoJSON from BCC Open Data parcel dataset
-- Write scripts/load-parcels.js
-- Transform to WGS84, load into subdivide_parcels
-- Verify: query for 6 Glenheaton Court Carindale — should return lot polygon + ~1086m² area
-- NOTE: Full Brisbane loads (load-parcels.js ~897k records, load-sw-pipes.js ~291k records) — scripts written and tested, run manually when time permits (~50 min total).
-
+- Full Brisbane load (897k records) — scripts written and tested, run manually when time permits (~30 min)
 ### [x] S1-4: Load BCC stormwater data
-- Download stormwater pipes GeoJSON from BCC Open Data
-- Download surface drains GeoJSON from BCC Open Data
-- Write scripts/load-sw-pipes.js and scripts/load-sw-drains.js
-- Load into respective tables
-- Verify: query pipes near 6 Glenheaton Court — should find the 825mm pipe from the hydraulics report
+- 2,343 surface drains loaded, 1,537 pipes loaded (Carindale area for test)
+- Full Brisbane pipe load (291k records) — scripts written and tested, run manually (~20 min)
+- Note: BCC has no Overland Flowpath type — FLOODWAY/SWALE/EARTH DRAIN used as proxies (600 records)
+### [x] S1-5: Address geocoding function — api/geocode.js verified end-to-end
 
-### [x] S1-5: Address geocoding function
-- Create api/geocode.js
-- Input: address string
-- Geocode via Mapbox → lat/lng
-- PostGIS query to find matching parcel
-- Output: { lot, plan, area_m2, geom_geojson, centroid_lat, centroid_lng }
+## SPRINT 1 TESTS ✅ COMPLETE
+### [x] S1-T: 6 Glenheaton Court returns ~1086m² ✅ 825mm pipe at 17m ✅ geocode returns centroid ✅
 
 ---
 
-## SPRINT 2 — Feasibility Checks Engine
+## SPRINT 2 — Feasibility Checks Engine ✅ COMPLETE
 
-### [x] S2-1: Zone check (api/check-zone.js)
-- Query ZoneIQ zone_geometries (already in Supabase)
-- Output: zone_code, zone_name, min_lot_size_m2
-- Logic: both new lots must meet minimum → PASS/MARGINAL/FAIL
+### [x] S2-1: Zone check — api/check-zone.js
+### [x] S2-2: Flood overlay check — api/check-flood.js
+### [x] S2-3: Slope/elevation check — api/check-elevation.js
+### [x] S2-4: Stormwater proximity check — api/check-stormwater.js
+### [x] S2-5: Character overlay check — api/check-character.js
+### [x] S2-6: Lot size viability — api/check-lotsize.js
+### [x] S2-7: Master feasibility aggregator — api/feasibility.js
 
-### [x] S2-2: Flood overlay check (api/check-flood.js)
-- Query ZoneIQ flood_overlays (already in Supabase)
-- Calculate % of lot covered by each flood planning category
-- Category 1-2 → RED
-- Category 3 + >50% coverage → RED
-- Category 3-5 any coverage → AMBER + hydraulics report flag ($4k-$8k, 6-8 weeks)
-- Overland flow present → AMBER
-- Output includes plain English consequence and build form flag
-
-### [x] S2-3: Slope/elevation check (api/check-elevation.js)
-- Sample 9 points across lot bounding box (3x3 grid)
-- Query QLD ArcGIS ImageServer for each point:
-  https://spatial-img.information.qld.gov.au/arcgis/rest/services/Elevation/QldDem/ImageServer/identify
-- Calculate min/max elevation and slope %
-- FLAT <2% GREEN, MODERATE 2-10% AMBER, STEEP >10% AMBER/RED
-- If flood overlay present: compare min_elev to flood immunity level
-  If min_elev < (flood_level + 0.5m) → flag "groundworks unlikely to achieve immunity, stilts likely"
-
-### [x] S2-4: Stormwater proximity check (api/check-stormwater.js)
-- ST_DWithin query on subdivide_sw_pipes — nearest pipe distance
-- ST_DWithin query on subdivide_sw_drains — overland flow proximity
-- Pipe <30m → GREEN, 30-80m → AMBER, >80m → AMBER/RED
-- Mapped overland flow within 100m → AMBER
-
-### [x] S2-5: Character overlay check (api/check-character.js)
-- Query ZoneIQ character_overlays (already in Supabase)
-- Output: in_character_overlay, overlay_name, demolition_note
-
-### [x] S2-6: Lot size viability (api/check-lotsize.js)
-- Calculate indicative split: 60/40 front/rear and battle-axe options
-- Check each new lot against zone minimum
-- Output: split_viable, front_lot_m2, rear_lot_m2, battle_axe_viable, frontage_width_m
-
-### [x] S2-7: Master feasibility aggregator (api/feasibility.js)
-- Call all checks in parallel via Promise.all
-- Any RED → overall RED
-- 2+ AMBER → overall AMBER (leaning RED)
-- 1 AMBER → overall AMBER
-- All GREEN → overall GREEN
-- Return complete feasibility object
+## SPRINT 2 TESTS ✅ COMPLETE
+### [x] S2-T: All feasibility checks tested and passing
 
 ---
 
@@ -125,35 +44,61 @@ Use $func$ not $$ for Supabase SQL functions.
 
 ### [ ] S3-1: Stripe checkout (api/checkout.js)
 - Product: SubdivideIQ Feasibility Report — $79 AUD
-- Include address in session metadata
+- Include address and email in session metadata
 - On success → webhook triggers report generation
 
 ### [ ] S3-2: Stripe webhook (api/webhook.js)
 - On checkout.session.completed:
-  - Run feasibility engine
+  - Run feasibility engine with address from metadata
   - Generate PDF
-  - Send via Resend
-  - Log to subdivide_reports
+  - Send via Resend to customer email
+  - Log to subdivide_reports table
 
 ### [ ] S3-3: PDF report template
-HTML → PDF with:
-- Header: address + date
+HTML → PDF via puppeteer or equivalent with:
+- Header: SubdivideIQ logo + address + date
 - Lot map: Mapbox Static API showing lot polygon + flood overlay + nearby stormwater pipes
-- Traffic light: large GREEN/AMBER/RED
-- One section per check with result badge + plain English + cost/time implication
-- "What to do next" section — consultant sequence and budget guide
-- Consultant cost reference table (town planner $1.5-3k, surveyor $2-4k, hydraulics $4-8k, DA $3-8k, infrastructure charges $20-30k per lot)
-- Disclaimer footer
+- Traffic light: large GREEN/AMBER/RED with summary line
+- One section per check: result badge + plain English explanation + cost/time implication
+- "What to do next" section: consultant sequence and realistic budget guide
+- Consultant cost reference table:
+  Town planner $1,500-$3,000
+  Land surveyor $2,000-$4,000
+  Hydraulics engineer $4,000-$8,000
+  DA fees $3,000-$8,000
+  Infrastructure charges $20,000-$30,000 per lot
+- Disclaimer footer: not engineering or legal advice
 
-### [ ] S3-4: Frontend — address entry page
-- Clean single page UI (same style as WhatCanIBuild)
+### [ ] S3-4: Frontend — address entry page (update public/index.html)
+- Clean single page UI matching WhatCanIBuild style
 - Address autocomplete via Mapbox
 - After address entry: show lot boundary on map as hook before payment
-- Price: $79
-- CTA: "Get my SubdivideIQ report"
+- Show traffic light preview (locked) to create anticipation
+- Price: $79 AUD clearly displayed
+- CTA button: "Get my SubdivideIQ report"
+- Trust signals: "60 second report", "Not legal advice — a pre-screen tool"
 
 ### [ ] S3-5: Confirmation page
-- "Your report is being generated — check your email in 60 seconds"
+- "Your report is being generated — check your email in around 60 seconds"
+- Show address and traffic light result (now unlocked)
+
+## SPRINT 3 TESTS
+
+### [ ] S3-T: End-to-end payment and report test
+Run these tests after Sprint 3 is built. All must PASS before moving to Sprint 4.
+Log results to OVERNIGHT_LOG.md with timestamps.
+
+1. Enter 6 Glenheaton Court Carindale in frontend — verify lot boundary appears on map
+2. Verify traffic light preview shows before payment
+3. Click through to Stripe checkout — verify $79 AUD, address in metadata
+4. Complete Stripe test payment — verify webhook fires within 10 seconds
+5. Verify feasibility engine runs and returns AMBER for this address
+6. Verify PDF generated with correct traffic light, all sections present, disclaimer footer present
+7. Verify PDF received via Resend to test email within 60 seconds
+8. Verify subdivide_reports row created in Supabase with correct address, result, stripe_session_id
+9. Verify confirmation page shows correct address and result
+
+If any test fails: investigate, fix, re-test before moving on. Do not proceed to Sprint 4 with a failing test.
 
 ---
 
@@ -171,38 +116,62 @@ HTML → PDF with:
 - api.mapbox.com
 - fzykfxesznyiigoyeyed.supabase.co
 
-### [ ] S4-3: Staging test with 6 Glenheaton Court Carindale
-- Verify: AMBER result with flood overlay flag
-- Verify: lot area ~1086m²
-- Verify: slope moderate
-- Verify: 825mm stormwater pipe detected nearby
-- Verify: PDF generated and emailed correctly
+### [ ] S4-3: Full Brisbane data loads
+- Run scripts/load-parcels.js — full 897k records (~30 min)
+- Run scripts/load-sw-pipes.js — full 291k records (~20 min)
+- Verify record counts in Supabase after each load
 
-### [ ] S4-4: Update portfoliostate repo
-- Update STATE.md with live SubdivideIQ details once launched
+### [ ] S4-4: Switch Stripe to live mode
+- Confirm Vercel production env has live Stripe keys
+- Run one live test payment end-to-end with real card
 
 ### [ ] S4-5: Jest smoke tests
 - Install Jest
-- Test api/geocode.js returns valid parcel response for "6 Glenheaton Court Carindale"
-- Test api/feasibility.js returns GREEN, AMBER, or RED for known Brisbane addresses
-- Tests must pass before launch
+- Test api/geocode.js returns valid parcel for "6 Glenheaton Court Carindale"
+- Test api/feasibility.js returns AMBER for 6 Glenheaton Court Carindale
+- Test api/feasibility.js returns GREEN or AMBER or RED (not null) for 3 other Brisbane addresses
+- All tests must pass
+
+### [ ] S4-6: Final staging test with 6 Glenheaton Court Carindale
+- AMBER result with flood overlay flag ✓
+- Lot area ~1086m² ✓
+- Slope moderate ✓
+- 825mm stormwater pipe at ~17m ✓
+- PDF generated, formatted correctly, disclaimer present ✓
+- Live Stripe payment processed ✓
+- Email received within 60 seconds ✓
+
+### [ ] S4-7: Update portfoliostate
+- Update STATE.md with live SubdivideIQ URL, Stripe live mode confirmed, launch date
+- Push updated BACKLOG.md copy to portfoliostate as SUBDIVIDEIQ_BACKLOG.md
+
+## SPRINT 4 TESTS
+
+### [ ] S4-T: Pre-launch checklist — all must be green before announcing
+1. Sprint 3 tests all passing ✅
+2. Full Brisbane parcel + pipe data loaded ✅
+3. Live Stripe payment end-to-end working ✅
+4. Jest smoke tests passing ✅
+5. PDF quality review — formatting, plain English, cost table, disclaimer ✅
+6. Mobile responsive frontend ✅
+7. Vercel production deployment confirmed live ✅
 
 ---
 
 ## FUTURE SPRINTS (do not build yet)
 
 ### [ ] F1: Building works pre-screen
-- Separate user flow: "I want to extend, not subdivide"
-- Key output: groundworks vs stilts signal from elevation vs flood immunity level
+- "I want to extend, not subdivide" user flow
+- Groundworks vs stilts signal from elevation vs flood immunity level
 - Directly addresses Steve's extension/stilts experience
 
 ### [ ] F2: DA precedent layer
-- Scrape BCC PD Online for nearby subdivision DAs
-- Display: "X approvals, Y refusals within 500m in last 5 years"
+- BCC PD Online nearby subdivision approvals/refusals
+- "X approvals, Y refusals within 500m in last 5 years"
 
 ### [ ] F3: Infrastructure charge estimator
-- BCC charge schedules are published
-- Show real dollar estimate per additional lot
+- BCC published charge schedules
+- Real dollar estimate per additional lot
 
 ### [ ] F4: Professional/town planner tier
 - $149/month subscription
@@ -214,6 +183,13 @@ HTML → PDF with:
 - Need: respective council parcel + stormwater data
 
 ### [ ] F6: Convergence with WhatCanIBuild
-- Both share ZoneIQ data engine
-- Unified product TBD — naming under consideration
-- WhatCanIBuild brand doesn't scale to subdivision use case
+- Unified product TBD
+- WhatCanIBuild brand doesn't scale to subdivision
+
+### [ ] F7: RapidAPI listing
+- SubdivideIQ feasibility as API product
+- Target: prop tech developers, mortgage brokers, real estate agents
+
+### [ ] F8: Real estate agent tier
+- Subdivision potential screening before listing
+- Bulk address upload, white-label report
