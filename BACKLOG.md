@@ -213,6 +213,30 @@ If any test fails: investigate, fix, re-test before moving on. Do not proceed to
 
 ---
 
+## PRODUCT LOGIC FIXES (do not skip)
+
+### [ ] PL-1: Traffic light logic calibration — thresholds too aggressive
+Current logic was built without real-world validation. Several checks may be returning
+RED/AMBER too aggressively, creating false negatives that undermine the product's value.
+
+Known specific issue:
+- Zone check returns RED for 1086m² in LDR (600m² minimum) — but this is marginal/AMBER
+  territory. A town planner can often find a viable path. Only truly impossible lots
+  (e.g. <900m² for a 600m² zone) should be RED.
+
+General principle to apply across all checks:
+- RED = hard blocker that no amount of money or time can fix, OR cost/risk so extreme
+  the project is commercially unviable for a typical homeowner
+- AMBER = constraint present that requires professional assessment — could go either way
+- GREEN = no constraint, or constraint so minor it won't affect viability
+- When in doubt, AMBER not RED — the product's job is to surface constraints,
+  not to make the decision for the user
+
+Review all check thresholds against this principle as a dedicated calibration sprint
+after first real customer reports are generated.
+
+---
+
 ## FUTURE SPRINTS (do not build yet)
 
 ### [ ] F1: Building works pre-screen
