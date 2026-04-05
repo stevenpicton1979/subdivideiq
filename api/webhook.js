@@ -82,13 +82,18 @@ module.exports = async (req, res) => {
 
   console.log('[webhook] Processing:', sessionId, 'address:', address)
 
-  // Respond to Stripe immediately (must within 30s) — process async
-  res.json({ received: true })
+  // Run full pipeline before responding — Stripe allows 30s.
+  // Race against 25s timeout so we always respond within Stripe's window.
+  const timeoutPromise = new Promise(resolve => setTimeout(() => resolve('timeout'), 25000))
+  const result = await Promise.race([
+    processReport({ sessionId, customerEmail, address, lat, lng }).then(() => 'done'),
+    timeoutPromise
+  ])
+  if (result === 'timeout') {
+    console.error('[webhook] processReport timed out after 25s — report may still complete async')
+  }
 
-  // Process report generation async (non-blocking to Stripe)
-  processReport({ sessionId, customerEmail, address, lat, lng }).catch(err => {
-    console.error('[webhook] processReport failed:', err.message)
-  })
+  return res.json({ received: true })
 }
 
 async function processReport({ sessionId, customerEmail, address, lat, lng }) {
