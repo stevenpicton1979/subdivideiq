@@ -555,6 +555,7 @@
         })
         const d = await r.json()
         if (d.url) {
+          sessionStorage.setItem('subdivideiq_address', selectedAddress || addressInput.value.trim())
           window.location.href = d.url
         } else {
           throw new Error(d.error || 'Checkout failed')
