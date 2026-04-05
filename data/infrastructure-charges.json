@@ -1,0 +1,47 @@
+{
+  "_source": "BCC Infrastructure Charges Resolution — April 2026",
+  "_url": "https://www.brisbane.qld.gov.au/planning-and-building/development-standards-and-process/infrastructure-charges",
+  "_notes": [
+    "Charges apply per additional lot created (not the original lot).",
+    "Residential charges are per dwelling/lot above the existing entitlement.",
+    "Charges are indexed quarterly by BCC and payable at DA approval.",
+    "BCC has two charge areas: Urban Area and Township Area — most Brisbane suburbs are Urban.",
+    "Infrastructure charges are separate from: DA fees, headworks, and council levies.",
+    "Infrastructure charge schedule was restructured in 2024 under the LGIP review.",
+    "Rates below are indicative 2026 estimates from the BCC LGIP charge schedule."
+  ],
+  "charge_areas": {
+    "URBAN": {
+      "label": "Urban Area (most Brisbane suburbs)",
+      "residential_per_additional_lot": {
+        "low_density_house": 28730,
+        "medium_density_unit": 20000,
+        "high_density_apartment": 14500
+      },
+      "currency": "AUD",
+      "gst_exclusive": true
+    },
+    "TOWNSHIP": {
+      "label": "Township Area (outer Brisbane villages)",
+      "residential_per_additional_lot": {
+        "low_density_house": 20000,
+        "medium_density_unit": 14000,
+        "high_density_apartment": 10000
+      },
+      "currency": "AUD",
+      "gst_exclusive": true
+    }
+  },
+  "default_charge": {
+    "min": 28000,
+    "max": 32000,
+    "label": "Conservative estimate — charge area not determinable",
+    "currency": "AUD"
+  },
+  "known_township_suburbs": [
+    "PULLENVALE", "MOGGILL", "ANSTEAD", "BROOKFIELD", "KENMORE HILLS",
+    "LAKE MANCHESTER", "MOUNT CROSBY", "MOUNT OMMANEY", "BELLBOWRIE",
+    "WACOL", "GOODNA", "GAILES", "CAROLE PARK", "DOOLANDELLA",
+    "CAMIRA", "SPRINGFIELD", "AUGUSTINE HEIGHTS", "RIPLEY"
+  ]
+}
