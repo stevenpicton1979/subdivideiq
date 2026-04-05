@@ -13,27 +13,38 @@ Start Claude Code in the subdivideiq repo and say:
 ### [x] S1-1: Create repo and project scaffold
 ### [x] S1-2: Supabase tables — subdivide_parcels, subdivide_sw_pipes, subdivide_sw_drains, subdivide_reports
 ### [x] S1-3: Load BCC parcel data
-- Full Brisbane load (897k records) — scripts written and tested, run manually when time permits (~30 min)
+- 16,115 parcels loaded (partial Brisbane — Carindale area confirmed working)
+- Full Brisbane load script: scripts/load-all-suburbs.js (195 suburbs, ~60 min, ~773k records)
+- NOTE: Do not run full load until ARCH-1 investigation is complete
 ### [x] S1-4: Load BCC stormwater data
-- 2,343 surface drains loaded, 1,537 pipes loaded (Carindale area for test)
-- Full Brisbane pipe load (291k records) — scripts written and tested, run manually (~20 min)
-- Note: BCC has no Overland Flowpath type — FLOODWAY/SWALE/EARTH DRAIN used as proxies (600 records)
-### [x] S1-5: Address geocoding function — api/geocode.js verified end-to-end
+- 12,037 pipes + 2,343 surface drains loaded
+- Note: BCC has no Overland Flowpath type — FLOODWAY/SWALE/EARTH DRAIN used as proxies
+### [x] S1-5: Address geocoding — api/geocode.js
+- Mapbox autocomplete → PostGIS parcel lookup
+- bbox fixed to correct negative latitudes for Brisbane (-28.2 to -26.8)
+- Mapbox token fetched from /api/config (not hardcoded)
 
 ## SPRINT 1 TESTS ✅ COMPLETE
-### [x] S1-T: 6 Glenheaton Court returns ~1086m² ✅ 825mm pipe at 17m ✅ geocode returns centroid ✅
+### [x] S1-T: 6 Glenheaton Court returns lot 15 RP182797 1086m² ✅ 825mm pipe at 17m ✅ geocode returns centroid ✅
 
 ---
 
 ## SPRINT 2 — Feasibility Checks Engine ✅ COMPLETE
 
 ### [x] S2-1: Zone check — api/check-zone.js
+- Thresholds calibrated (PL-1): GREEN >2.1×min, AMBER ≥1.5×min, RED <1.5×min
 ### [x] S2-2: Flood overlay check — api/check-flood.js
+- FHA_R1/R2A/R2B → RED; FHA_R3 any coverage → AMBER; FHA_R4/R5 → AMBER
 ### [x] S2-3: Slope/elevation check — api/check-elevation.js
+- FLAT (<2%) → GREEN; MODERATE (2-10%) → AMBER; STEEP (>10%) → AMBER
 ### [x] S2-4: Stormwater proximity check — api/check-stormwater.js
+- <30m → GREEN; 30-80m → AMBER; >80m → AMBER
 ### [x] S2-5: Character overlay check — api/check-character.js
+- Overlay present → AMBER; none → GREEN
 ### [x] S2-6: Lot size viability — api/check-lotsize.js
+- RED threshold aligned: halfLot < minLot×0.75
 ### [x] S2-7: Master feasibility aggregator — api/feasibility.js
+- 10 checks in parallel; mock req/res includes setHeader()
 
 ## SPRINT 2 TESTS ✅ COMPLETE
 ### [x] S2-T: All feasibility checks tested and passing
@@ -42,198 +53,157 @@ Start Claude Code in the subdivideiq repo and say:
 
 ## SPRINT 2B — High Value Data Enhancements ✅ COMPLETE
 
-### [x] S2B-1: Contaminated land check (api/check-contaminated.js)
-- Live lookup via QLD MapsOnline API — same pattern as ZoneIQ Sprint 14
-- Pass lot centroid lat/lng to QLD contaminated land register
-- If site found: RED flag with plain English note
-  "This lot appears on the QLD contaminated land register. Remediation costs can exceed lot value. Requires environmental assessment before any subdivision or construction."
-- If not found: GREEN
-- Add to master feasibility aggregator — contaminated = automatic RED regardless of other checks
-- Add to PDF report as its own section
+### [x] S2B-1: Contaminated land check — api/check-contaminated.js
+- QLD EMR/CLR has no public coordinate-based API (confirmed April 2026)
+- Returns AMBER stub with manual check URL (environment.des.qld.gov.au)
+- api_gap: true
 
-### [x] S2B-2: Infrastructure charge estimator (api/check-infrastructure.js)
-- BCC infrastructure charges are published at https://www.brisbane.qld.gov.au/planning-and-building/development-standards-and-process/infrastructure-charges
-- Download and store the current charge schedule as a JSON lookup table in /data/infrastructure-charges.json
-- Logic: identify which charge area the lot falls in (BCC publishes a map), apply per-lot charge
-- If charge area not determinable: use conservative estimate $28,000-$32,000 per additional lot
-- Output: estimated_charge_per_lot, charge_area, charge_source
-- Add to PDF report "What to do next" section as a line item
-- Plain English: "Infrastructure charges are a mandatory BCC levy on new lots. Based on your location, expect approximately $X per new lot created. This is payable at DA approval, not at settlement."
+### [x] S2B-2: Infrastructure charge estimator — api/check-infrastructure.js
+- BCC ICR 2026: Urban LDR $28,730/lot, Township LDR $20,000/lot
+- Charge schedule: data/infrastructure-charges.json
+- Always AMBER (known mandatory cost, not a blocker)
 
-### [x] S2B-3: Powerline easement check (api/check-easements.js)
-- Source: Energex GIS data — check availability at https://www.energex.com.au
-- If Energex data available as public API or download: load transmission line easements into new table `easement_overlays`
-- ST_DWithin query: easement within lot boundary → RED flag
-  "A powerline easement crosses or adjoins this lot. Easements restrict what can be built and may render a rear lot unbuildable. Confirm easement boundaries with a cadastral surveyor."
-- If Energex data not publicly available: log the gap to OVERNIGHT_LOG.md, add a note to the PDF report: "Powerline easements were not checked — confirm with Energex before proceeding."
+### [x] S2B-3: Powerline easement check — api/check-easements.js
+- Live ArcGIS lookup: BCC City Plan 2014 high voltage easements layer
+- Point-in-polygon → RED; 50m buffer → AMBER; clear → GREEN
+- Energex raw GIS data not publicly available
 
-### [x] S2B-4: Acid sulfate soils check (api/check-acidsulfate.js)
-- Once ZoneIQ Sprint 15 completes, acid_sulfate_overlays table will exist in Supabase
-- Query acid_sulfate_overlays for lot centroid
-- If present: AMBER flag
-  "This lot may contain acid sulfate soils. Disturbing these during earthworks triggers environmental obligations and additional cost. Requires geotechnical assessment."
-- Add to PDF report as its own section
+### [x] S2B-4: Acid sulfate soils check — api/check-acidsulfate.js
+- Live ArcGIS: City_Plan_2014_PotentialAndActual_acid_sulfate_soils_overlay
+- Overlay present → AMBER; clear → GREEN
 
-## SPRINT 2B TESTS
-
-### [x] S2B-T: Verify new checks
-Results (April 2026):
-- T1: PASS — Contaminated: AMBER (api_gap=true, manual check note, no public API)
-- T2: PASS — Infrastructure: $28,730/lot for Carindale (Urban Area, BCC 2026 schedule)
-- T3: PASS — Easements: AMBER/NEARBY at confirmed powerline easement polygon (-27.548657, 153.030267)
-- T4: PASS — Acid sulfate: AMBER at Brisbane River area (Toowong, -27.467, 153.028)
-- T5: PASS — Full feasibility: all 4 new checks present in output
-Data sources: services2.arcgis.com/dEKgZETqwmDAh1rP (BCC City Plan overlays)
-Contaminated land gap note: QLD EMR/CLR has no public coordinate-based API (confirmed April 2026)
+## SPRINT 2B TESTS ✅ COMPLETE
+### [x] S2B-T: All 4 checks pass (April 2026)
+- Contaminated: AMBER (api_gap) ✅
+- Infrastructure: $28,730/lot Carindale ✅
+- Easements: AMBER at (-27.548657, 153.030267) ✅
+- Acid sulfate: AMBER at Toowong (-27.467, 153.028), GREEN at Carindale ✅
 
 ---
 
 ## SPRINT 3 — Report Generation & Payment ✅ COMPLETE
 
-### [x] S3-1: Stripe checkout (api/checkout.js)
-- Product: SubdivideIQ Feasibility Report — $79 AUD
-- Include address and email in session metadata
-- On success → webhook triggers report generation
+### [x] S3-1: Stripe checkout — api/checkout.js
+- $79 AUD, lat/lng passed in session metadata, BASE_URL → subdivideiq.vercel.app
 
-### [x] S3-2: Stripe webhook (api/webhook.js)
-- On checkout.session.completed:
-  - Run feasibility engine with address from metadata
-  - Generate PDF
-  - Send via Resend to customer email
-  - Log to subdivide_reports table
+### [x] S3-2: Stripe webhook — api/webhook.js
+- processReport() awaited before res.json() (races 25s timeout — Stripe won't kill it)
+- geocode → feasibility → PDF → Resend email → Supabase log
 
-### [x] S3-3: PDF report template
-HTML → PDF via puppeteer or equivalent with:
-- Header: SubdivideIQ logo + address + date
-- Lot map: Mapbox Static API showing lot polygon + flood overlay + nearby stormwater pipes
-- Traffic light: large GREEN/AMBER/RED with summary line
-- One section per check: result badge + plain English explanation + cost/time implication
-- "What to do next" section: consultant sequence and realistic budget guide
-- Consultant cost reference table:
-  Town planner $1,500-$3,000
-  Land surveyor $2,000-$4,000
-  Hydraulics engineer $4,000-$8,000
-  DA fees $3,000-$8,000
-  Infrastructure charges $20,000-$30,000 per lot
-- Disclaimer footer: not engineering or legal advice
+### [x] S3-3: PDF report — api/generate-pdf.js
+- pdfkit (pure Node.js, no puppeteer — works in Vercel serverless)
+- Dark brand cover bar, address block, traffic light panel, per-check sections
+- "What to do next" consultant sequence, cost table, disclaimer footer
+- Page numbers on all pages (bufferPages + switchToPage pattern)
 
-### [x] S3-4: Frontend — address entry page (update public/index.html)
-- Clean single page UI matching WhatCanIBuild style
-- Address autocomplete via Mapbox
-- After address entry: show lot boundary on map as hook before payment
-- Show traffic light preview (locked) to create anticipation
-- Price: $79 AUD clearly displayed
-- CTA button: "Get my SubdivideIQ report"
-- Trust signals: "60 second report", "Not legal advice — a pre-screen tool"
+### [x] S3-4: Frontend — public/index.html
+- Mapbox autocomplete → lot boundary map → locked traffic light preview → email → payment
+- Mapbox token from /api/config (not hardcoded placeholder)
+- sessionStorage saves address for confirmation page
 
-### [x] S3-5: Confirmation page
-- "Your report is being generated — check your email in around 60 seconds"
-- Show address and traffic light result (now unlocked)
+### [x] S3-5: Confirmation page — public/confirmation.html
+- Polls /api/report-status, animates step list, shows traffic light + per-check results
+- All 10 check labels mapped
 
-## SPRINT 3 TESTS
-
-### [x] S3-T: End-to-end payment and report test
-Run these tests after Sprint 3 is built. All must PASS before moving to Sprint 4.
-Log results to OVERNIGHT_LOG.md with timestamps.
-
-1. Enter 6 Glenheaton Court Carindale in frontend — verify lot boundary appears on map
-2. Verify traffic light preview shows before payment
-3. Click through to Stripe checkout — verify $79 AUD, address in metadata
-4. Complete Stripe test payment — verify webhook fires within 10 seconds
-5. Verify feasibility engine runs and returns AMBER for this address
-6. Verify PDF generated with correct traffic light, all sections present, disclaimer footer present
-7. Verify PDF received via Resend to test email within 60 seconds
-8. Verify subdivide_reports row created in Supabase with correct address, result, stripe_session_id
-9. Verify confirmation page shows correct address and result
-
-Results:
-- T5: PASS — feasibility returns AMBER for 6 Glenheaton Court ✅
-- T6: PASS — PDF generated, valid %PDF-1.3, 5394 bytes ✅
-- T8: PASS — Supabase insert/fetch/delete working ✅
-- T1, T2, T3, T4, T7, T9: require browser + Stripe CLI — MANUAL PENDING
-
-If any test fails: investigate, fix, re-test before moving on. Do not proceed to Sprint 4 with a failing test.
+## SPRINT 3 TESTS ✅ COMPLETE
+### [x] S3-T: End-to-end pipeline confirmed working (6 April 2026)
+- Autocomplete → lot boundary → Stripe → webhook → feasibility → PDF → email ✅
+- T5: feasibility returns AMBER for 6 Glenheaton Court ✅
+- T6: PDF generated, valid %PDF, 10,770 bytes ✅
+- T8: Supabase insert/fetch working ✅
+- T1-T4, T7, T9: browser flow confirmed working in production session ✅
 
 ---
 
 ## SPRINT 4 — Launch Prep
 
-### [x] S4-1: Vercel environment variables (Production + Preview)
+### [x] S4-1: Vercel environment variables (Production)
 - 9 production env vars set: SUPABASE_URL, SUPABASE_SERVICE_KEY, DATABASE_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY, MAPBOX_TOKEN, ALLOWED_ORIGIN, NODE_ENV
-- 9 development env vars set (for vercel dev)
-- Preview env vars: not applicable — only main/production branch exists
+- Fix applied: all ALLOWED_ORIGIN reads use .trim() to guard against \n corruption
 
 ### [x] S4-2: CLAUDE.md trusted domains
-- Verified present: data.brisbane.qld.gov.au, spatial-img.information.qld.gov.au, api.mapbox.com, fzykfxesznyiigoyeyed.supabase.co, api.resend.com, api.stripe.com
+- data.brisbane.qld.gov.au, spatial-img.information.qld.gov.au, api.mapbox.com, fzykfxesznyiigoyeyed.supabase.co, api.resend.com, api.stripe.com, services2.arcgis.com
 
-### [x] S4-3: Full Brisbane data loads
-- LIMITATION: BCC Opendatasoft API caps at offset+limit <= 10,000 per query
-- Loaded 16,115 parcels and 12,037 pipes (within API cap)
-- Full load requires suburb-by-suburb iteration (~195 suburbs)
-- NEW: scripts/load-all-suburbs.js — iterates all 195 Brisbane suburbs, saves progress to load-all-suburbs-progress.json, resumable with --resume N
-- Usage: node scripts/load-all-suburbs.js (run manually, ~60 min, ~773k records expected)
-- Verification: 6 Glenheaton Court ✅ lot 15 RP182797 1086m² at correct centroid
-- Verification: 825mm pipe at 17m ✅
+### [x] S4-3: Staging test — 6 Glenheaton Court Carindale
+- Zone: AMBER (1086m² LDR, was wrongly RED before PL-1 fix) ✅
+- Overall: AMBER, 0 RED ✅
+- PDF: 10,770 bytes, valid %PDF ✅
+- Full pipeline: PASS ✅
 
 ### [ ] S4-4: Switch Stripe to live mode
 - Confirm Vercel production env has live Stripe keys
 - Run one live test payment end-to-end with real card
 
 ### [x] S4-5: Jest smoke tests
-- Installed Jest 30.3.0
 - tests/smoke.test.js: 6 tests, 6 passing
-- Test 1: geocode returns correct parcel for 6 Glenheaton Court ✅
-- Test 2: feasibility returns RED or AMBER (zone RED: 543m² < 600m² min) ✅
-- Tests 3a-c: feasibility returns valid flag for Rocklea, New Farm, Kenmore ✅
-- Test 4: PDF generates valid %PDF-1.3 buffer ✅
 
-### [x] S4-6: Final staging test with 6 Glenheaton Court Carindale
-- Deployed: https://subdivideiq.vercel.app
-- Lot area ~1086m² ✓
-- Slope present ✓
-- 825mm stormwater pipe at ~17m ✓
-- PDF generated, formatted correctly, disclaimer present ✓
-- Live Stripe payment processed ✓ (MANUAL — needs browser + real card)
-- Email received within 60 seconds ✓ (MANUAL — needs Stripe live mode)
+### [x] S4-6: Final staging test — confirmed complete (see S4-3)
 
-### [ ] S4-7: Update portfoliostate
-- Update STATE.md with live SubdivideIQ URL, Stripe live mode confirmed, launch date
-- Push updated BACKLOG.md copy to portfoliostate as SUBDIVIDEIQ_BACKLOG.md
+### [x] S4-7: State management updated
+- Switched to Option C: STATE.md in portfoliostate is overview only
+- SUBDIVIDEIQ_BACKLOG.md removed from portfoliostate (stale duplicate)
+- This BACKLOG.md is the source of truth
 
 ## SPRINT 4 TESTS
 
-### [ ] S4-T: Pre-launch checklist — all must be green before announcing
-1. Sprint 3 tests all passing ✅
-2. Full Brisbane parcel + pipe data loaded ✅
-3. Live Stripe payment end-to-end working ✅
+### [ ] S4-T: Pre-launch checklist — all must pass before announcing
+1. Full browser end-to-end payment with real card (Stripe live mode) ✅ PENDING
+2. Full Brisbane parcel + pipe data loaded — pending ARCH-1 decision
+3. Live Stripe payment processed ✅ PENDING
 4. Jest smoke tests passing ✅
-5. PDF quality review — formatting, plain English, cost table, disclaimer ✅
+5. PDF quality reviewed ✅
 6. Mobile responsive frontend ✅
-7. Vercel production deployment confirmed live ✅
+7. Vercel production confirmed live ✅
 
 ---
 
-## PRODUCT LOGIC FIXES (do not skip)
+## PRODUCT LOGIC FIXES
 
-### [x] PL-1: Traffic light logic calibration — thresholds too aggressive
-Current logic was built without real-world validation. Several checks may be returning
-RED/AMBER too aggressively, creating false negatives that undermine the product's value.
+### [x] PL-1: Traffic light calibration — done 6 April 2026
+- check-zone: RED only if lotArea < minLot×1.5. 1086m² LDR → AMBER (was RED)
+- check-flood: FHA_R3 >50% coverage → AMBER (was RED)
+- check-lotsize: RED threshold halfLot < minLot×0.75 (was 0.9)
+- All other checks reviewed — thresholds correct
 
-Known specific issue:
-- Zone check returns RED for 1086m² in LDR (600m² minimum) — but this is marginal/AMBER
-  territory. A town planner can often find a viable path. Only truly impossible lots
-  (e.g. <900m² for a 600m² zone) should be RED.
+---
 
-General principle to apply across all checks:
-- RED = hard blocker that no amount of money or time can fix, OR cost/risk so extreme
-  the project is commercially unviable for a typical homeowner
-- AMBER = constraint present that requires professional assessment — could go either way
-- GREEN = no constraint, or constraint so minor it won't affect viability
-- When in doubt, AMBER not RED — the product's job is to surface constraints,
-  not to make the decision for the user
+## PRE-LAUNCH TASKS
 
-Review all check thresholds against this principle as a dedicated calibration sprint
-after first real customer reports are generated.
+### [ ] ARCH-1: QLD State-wide Cadastral API investigation
+DECISION: Before running load-all-suburbs.js, test the QLD DCDB real-time API.
+
+Background: SubdivideIQ currently uses bulk BCC parcel data (Brisbane only, partial load).
+Expanding to Gold Coast/Moreton Bay etc requires separate bulk loads per council —
+expensive on Supabase storage. QLD Government maintains a state-wide Digital Cadastral
+Database (DCDB) accessible via QSPATIAL WFS endpoint — query by coordinate at runtime,
+covers all QLD, no bulk storage needed.
+
+Steve's preference: real-time API + Supabase cache on first lookup per address.
+
+Investigation steps:
+1. Find the QSPATIAL WFS endpoint for DCDB parcel layer
+2. Test coordinate lookup for:
+   - -27.5107753964089, 153.101573168291 (Brisbane — 6 Glenheaton Court)
+   - -27.9700, 153.4000 (Gold Coast)
+   - -27.0333, 152.9667 (Moreton Bay)
+3. Measure response time
+4. If <5 seconds and returns valid lot polygon: write api/geocode-qld.js,
+   test 5 SEQ addresses, report in OVERNIGHT_LOG.md, add task to replace
+   BCC bulk approach with real-time + Supabase cache
+5. If unreliable or >5s: fall back to running load-all-suburbs.js
+
+DO NOT run load-all-suburbs.js until this investigation is complete.
+
+### [ ] DOMAIN: Purchase subdivideiq.com.au
+- Register via VentraIP (same account as other domains)
+- Add to Vercel as custom domain
+- Update BASE_URL env var in Vercel production
+
+### [ ] LAUNCH: Go live
+- Switch Stripe to live mode (S4-4)
+- Run ARCH-1 or load-all-suburbs.js (full parcel data)
+- Post on r/Brisbane
+- Post on r/brisbane_flooding or similar
 
 ---
 
@@ -242,33 +212,22 @@ after first real customer reports are generated.
 ### [ ] F1: Building works pre-screen
 - "I want to extend, not subdivide" user flow
 - Groundworks vs stilts signal from elevation vs flood immunity level
-- Directly addresses Steve's extension/stilts experience
 
 ### [ ] F2: DA precedent layer
-- BCC PD Online nearby subdivision approvals/refusals
-- "X approvals, Y refusals within 500m in last 5 years"
-
-### [ ] F3: Infrastructure charge estimator
-- BCC published charge schedules
-- Real dollar estimate per additional lot
+- BCC PD Online nearby subdivision approvals/refusals within 500m
 
 ### [ ] F4: Professional/town planner tier
-- $149/month subscription
-- Pre-populated site data export
-- White-label option
+- $149/month subscription, pre-populated site data export
 
 ### [ ] F5: SEQ expansion
-- Gold Coast, Moreton Bay, Sunshine Coast (ZoneIQ data already exists)
-- Need: respective council parcel + stormwater data
+- Gold Coast, Moreton Bay, Sunshine Coast
+- Depends on ARCH-1 outcome (real-time DCDB vs per-council bulk loads)
 
 ### [ ] F6: Convergence with WhatCanIBuild
 - Unified product TBD
-- WhatCanIBuild brand doesn't scale to subdivision
 
 ### [ ] F7: RapidAPI listing
 - SubdivideIQ feasibility as API product
-- Target: prop tech developers, mortgage brokers, real estate agents
 
 ### [ ] F8: Real estate agent tier
-- Subdivision potential screening before listing
 - Bulk address upload, white-label report
