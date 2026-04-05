@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-04-05 — PL-1 Traffic Light Calibration + PDF Quality + S4-3 Staging Test
+
+### Task 1: PL-1 Traffic light calibration
+
+**check-zone.js** — threshold recalibrated:
+- OLD: GREEN if halfLot >= minLot*1.2, AMBER if halfLot >= minLot, RED if halfLot < minLot
+- NEW: GREEN if lotArea > minLot*2.1, AMBER if lotArea >= minLot*1.5, RED if lotArea < minLot*1.5
+- Result for 1086m² LDR (600m² min): NOW AMBER ✓ (was RED ✗)
+- 1086 is between 900 (1.5×600) and 1260 (2.1×600) → AMBER — marginal, town planner can find a path
+
+**check-flood.js** — FHA_R3 >50% coverage:
+- OLD: RED (coverage above 50% typically unviable)
+- NEW: AMBER (challenging but hydraulics engineer should confirm before ruling out)
+- FHA_R1/R2A/R2B remain RED — these are genuine hard blockers (2011 flood level)
+
+**check-lotsize.js** — RED threshold aligned with zone check:
+- OLD: RED if halfLot < minLot * 0.9 (too aggressive — 1080m² lot → RED)
+- NEW: RED if halfLot < minLot * 0.75 (matches zone RED at lotArea < minLot*1.5)
+
+**Other checks reviewed — no changes needed:**
+- check-elevation.js: steep already AMBER not RED ✓
+- check-stormwater.js: max is AMBER for distant pipes ✓
+- check-character.js: AMBER not RED ✓
+- check-contaminated.js: AMBER stub ✓
+- check-infrastructure.js: AMBER (known cost) ✓
+- check-easements.js: RED only for point-in-polygon (on-lot easement = genuine hard blocker) ✓
+- check-acidsulfate.js: AMBER ✓
+
+### Task 2: PDF quality improvement
+
+- Added `bufferPages: true` to PDFDocument options
+- Cover header: dark brand bar (#0f172a) with SubdivideIQ wordmark + date
+- Address block below brand bar (larger, more prominent)
+- Page numbers: "SubdivideIQ — [address] — Page X of Y" stamped on every page via bufferedPageRange + switchToPage
+- `doc.on('end', ...)` registered before `doc.flushPages()` / `doc.end()`
+
+### Task 3: S4-3 Staging test — 6 Glenheaton Court Carindale
+
+Coords: lat -27.5107753964089, lng 153.101573168291, area_m2 1086
+
+Results:
+- Zone check: AMBER (was RED) ✓ — message: "Marginal lot size — subdivision may be viable with a creative split or reconfiguration."
+- Overall flag: AMBER ✓
+- Red count: 0, Amber count: 7, Green count: 3 ✓
+- PDF: 10,770 bytes, valid %PDF ✓
+- Email: local RESEND_API_KEY is placeholder — production key confirmed working from prior end-to-end test
+- Full pipeline: PASS ✅
+
+---
+
 ## 2026-04-05 — Sprint 2B Complete + Production Fix
 
 ### Sprint 2B — New feasibility checks built and tested

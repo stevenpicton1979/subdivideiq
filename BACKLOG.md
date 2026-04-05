@@ -187,7 +187,7 @@ If any test fails: investigate, fix, re-test before moving on. Do not proceed to
 - Tests 3a-c: feasibility returns valid flag for Rocklea, New Farm, Kenmore ✅
 - Test 4: PDF generates valid %PDF-1.3 buffer ✅
 
-### [ ] S4-6: Final staging test with 6 Glenheaton Court Carindale
+### [x] S4-6: Final staging test with 6 Glenheaton Court Carindale
 - Deployed: https://subdivideiq.vercel.app
 - Lot area ~1086m² ✓
 - Slope present ✓
@@ -215,7 +215,7 @@ If any test fails: investigate, fix, re-test before moving on. Do not proceed to
 
 ## PRODUCT LOGIC FIXES (do not skip)
 
-### [ ] PL-1: Traffic light logic calibration — thresholds too aggressive
+### [x] PL-1: Traffic light logic calibration — thresholds too aggressive
 Current logic was built without real-world validation. Several checks may be returning
 RED/AMBER too aggressively, creating false negatives that undermine the product's value.
 

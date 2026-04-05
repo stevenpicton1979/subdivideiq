@@ -44,6 +44,7 @@ async function generatePdf({ address, feasibility, parcel }) {
       const doc = new PDFDocument({
         size: 'A4',
         margin: 50,
+        bufferPages: true,
         info: {
           Title: `SubdivideIQ Report — ${address}`,
           Author: 'SubdivideIQ',
@@ -53,7 +54,6 @@ async function generatePdf({ address, feasibility, parcel }) {
 
       const chunks = []
       doc.on('data', c => chunks.push(c))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
       doc.on('error', reject)
 
       const overall = feasibility?.overall || {}
@@ -68,24 +68,25 @@ async function generatePdf({ address, feasibility, parcel }) {
         day: '2-digit', month: 'long', year: 'numeric'
       })
 
-      // ── HEADER ──────────────────────────────────────────────────────────────
-      doc.fontSize(22).fillColor('#1e293b').font('Helvetica-Bold')
-        .text('SubdivideIQ', 50, 50)
+      // ── COVER HEADER ─────────────────────────────────────────────────────────
+      // Brand bar
+      doc.rect(0, 0, doc.page.width, 56).fill('#0f172a')
+      doc.fontSize(22).fillColor('#ffffff').font('Helvetica-Bold')
+        .text('SubdivideIQ', 50, 16)
+      doc.fontSize(9).fillColor('#94a3b8').font('Helvetica')
+        .text('Subdivision Feasibility Pre-Screen', 50, 40)
+      doc.fontSize(9).fillColor('#94a3b8').font('Helvetica')
+        .text(generatedAt, 50, 40, { align: 'right' })
 
-      doc.fontSize(9).fillColor('#64748b').font('Helvetica')
-        .text('Subdivision Feasibility Pre-Screen', 50, 76)
-
-      // Address + date (right-aligned)
-      doc.fontSize(9).fillColor('#374151').font('Helvetica')
-        .text(generatedAt, 50, 50, { align: 'right' })
-      doc.fontSize(11).fillColor('#1e293b').font('Helvetica-Bold')
-        .text(address, 50, 64, { align: 'right' })
+      // Address block
+      doc.fontSize(14).fillColor('#0f172a').font('Helvetica-Bold')
+        .text(address, 50, 72, { width: pageW })
 
       // Horizontal rule
-      doc.moveTo(50, 100).lineTo(545, 100).strokeColor('#e2e8f0').lineWidth(1).stroke()
+      doc.moveTo(50, 94).lineTo(545, 94).strokeColor('#e2e8f0').lineWidth(1).stroke()
 
       // ── LOT MAP (Mapbox Static API) ──────────────────────────────────────────
-      let mapY = 115
+      let mapY = 108
       const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN
       if (MAPBOX_TOKEN && parcel?.centroid_lat && parcel?.centroid_lng) {
         try {
@@ -290,6 +291,21 @@ async function generatePdf({ address, feasibility, parcel }) {
         y += doc.heightOfString(line, { width: pageW }) + 3
       }
 
+      // ── PAGE NUMBERS ─────────────────────────────────────────────────────────
+      const range = doc.bufferedPageRange()
+      const totalPages = range.count
+      for (let i = 0; i < totalPages; i++) {
+        doc.switchToPage(i)
+        doc.fontSize(7).fillColor('#94a3b8').font('Helvetica')
+          .text(
+            `SubdivideIQ — ${address} — Page ${i + 1} of ${totalPages}`,
+            50, doc.page.height - 28,
+            { width: pageW, align: 'center' }
+          )
+      }
+
+      doc.on('end', () => resolve(Buffer.concat(chunks)))
+      doc.flushPages()
       doc.end()
     } catch (err) {
       reject(err)

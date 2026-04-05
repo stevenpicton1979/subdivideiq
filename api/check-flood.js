@@ -117,15 +117,14 @@ module.exports = async (req, res) => {
         })
       } else if (COVERAGE_CHECK_CATEGORIES.includes(cat)) {
         if (pct > 50) {
-          overallFlag = 'RED'
-          buildFormFlag = true
+          if (overallFlag !== 'RED') overallFlag = 'AMBER'
           flags.push({
             type: 'river_flood',
             category: cat,
             risk_level: o.risk_level,
             coverage_pct: pct,
-            result: 'RED',
-            plain_english: `${cat} flood planning area covers ${pct}% of this lot. Coverage above 50% typically makes subdivision commercially unviable. A hydraulics report (${HYDRAULICS_COST}, ${HYDRAULICS_TIME}) would be required to confirm.`
+            result: 'AMBER',
+            plain_english: `${cat} flood planning area covers ${pct}% of this lot. This is significant coverage — a hydraulics report (${HYDRAULICS_COST}, ${HYDRAULICS_TIME}) is required to determine whether the rear lot can achieve flood immunity. Commercially challenging but a qualified hydraulics engineer should confirm before ruling it out.`
           })
         } else {
           if (overallFlag !== 'RED') overallFlag = 'AMBER'

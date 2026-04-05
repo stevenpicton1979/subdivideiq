@@ -81,12 +81,13 @@ module.exports = async (req, res) => {
     message = `Standard front/rear split may not produce two compliant lots (${Math.round(rearLotA)}m² rear < ${minLot}m² minimum). However, a battle-axe configuration (rear lot with access strip) may be viable — consult a town planner.`
   } else {
     const halfLot = Math.round(totalArea / 2)
-    if (halfLot >= minLot * 0.9) {
-      // Very close — marginal
+    if (halfLot >= minLot * 0.75) {
+      // Marginal — a creative split, battle-axe, or reconfiguration may still work
       status = 'MARGINAL'
       flag = 'AMBER'
       message = `Lot area (${Math.round(totalArea)}m²) is close to the minimum needed for two ${minLot}m² lots. A creative split or battle-axe may work — a town planner can advise.`
     } else {
+      // Hard blocker — no realistic configuration produces two compliant lots
       status = 'NOT_VIABLE'
       flag = 'RED'
       message = `Lot area (${Math.round(totalArea)}m²) is insufficient to produce two lots meeting the ${minLot}m² minimum in this zone. Subdivision is not viable on this lot size.`

@@ -75,22 +75,24 @@ module.exports = async (req, res) => {
     let message = ''
 
     if (minLot && lotArea) {
-      // Both new lots must meet minimum — simple 50/50 worst case
-      const halfLot = lotArea / 2
-      if (halfLot >= minLot * 1.2) {
+      // Thresholds based on total lot area vs minimum lot size:
+      //   GREEN  — lotArea > minLot * 2.1  (both halves clearly above minimum)
+      //   AMBER  — lotArea >= minLot * 1.5 (marginal — town planner can often find a path)
+      //   RED    — lotArea < minLot * 1.5  (hard blocker — no realistic split configuration works)
+      if (lotArea > minLot * 2.1) {
         status = 'PASS'
         flag = 'GREEN'
         message = `Lot area (${Math.round(lotArea)}m²) comfortably supports two lots above the ${minLot}m² minimum for ${row.zone_name}`
-      } else if (halfLot >= minLot) {
+      } else if (lotArea >= minLot * 1.5) {
         status = 'MARGINAL'
         flag = 'AMBER'
-        message = `Lot area (${Math.round(lotArea)}m²) marginally meets the ${minLot}m² minimum — split design will be critical`
+        message = `Marginal lot size — subdivision may be viable with a creative split or reconfiguration. Town planner consultation strongly recommended.`
       } else {
         status = 'FAIL'
         flag = 'RED'
-        message = `Lot area (${Math.round(lotArea)}m²) is too small to produce two ${minLot}m² lots required in ${row.zone_name}`
+        message = `Lot area (${Math.round(lotArea)}m²) is too small to reliably produce two lots meeting the ${minLot}m² minimum for ${row.zone_name}. Subdivision is unlikely to be viable.`
       }
-      splitViable = halfLot >= minLot
+      splitViable = lotArea >= minLot * 1.5
     } else if (minLot) {
       message = `Minimum lot size for ${row.zone_name} is ${minLot}m²`
     }
