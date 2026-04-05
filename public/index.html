@@ -497,7 +497,7 @@
         return
       }
       if (mapInstance) { mapInstance.remove(); mapInstance = null }
-      mapbox = mapboxgl.Map({
+      mapbox = new mapboxgl.Map({
         container: 'map-container',
         style:  'mapbox://styles/mapbox/streets-v12',
         center: [parcel.centroid_lng, parcel.centroid_lat],
