@@ -6,24 +6,300 @@
   <title>SubdivideIQ — Report Generating</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { background: #fff; border-radius: 16px; padding: 3rem 2.5rem; max-width: 480px; width: 100%; margin: 1rem; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-    .icon { font-size: 3rem; margin-bottom: 1.5rem; }
-    h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; }
-    p { color: #4b5563; line-height: 1.6; margin-bottom: 1rem; }
-    .note { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; font-size: 0.875rem; color: #166534; margin-top: 1.5rem; }
-    a { color: #2563eb; text-decoration: none; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc; color: #0f172a;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 1.5rem;
+    }
+
+    .brand {
+      font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 2rem;
+      letter-spacing: -0.02em;
+    }
+
+    .card {
+      background: #fff; border-radius: 16px; padding: 2.5rem 2rem;
+      max-width: 500px; width: 100%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+
+    /* ── PENDING STATE ── */
+    .state-pending { text-align: center; }
+    .spinner {
+      width: 52px; height: 52px; margin: 0 auto 1.5rem;
+      border: 4px solid #e2e8f0; border-top-color: #2563eb;
+      border-radius: 50%; animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .state-pending h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 0.75rem; }
+    .state-pending p  { color: #64748b; font-size: 0.9rem; line-height: 1.6; }
+    .address-line {
+      background: #f1f5f9; border-radius: 8px; padding: 0.6rem 1rem;
+      font-size: 0.9rem; font-weight: 600; color: #1e293b;
+      margin: 1.25rem 0; text-align: left;
+    }
+    .step-list {
+      list-style: none; margin: 1.25rem 0 0; text-align: left;
+    }
+    .step-list li {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.82rem; color: #64748b; padding: 0.35rem 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .step-list li:last-child { border-bottom: none; }
+    .step-list .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;
+      flex-shrink: 0; transition: background 0.4s;
+    }
+    .step-list li.active .dot  { background: #2563eb; }
+    .step-list li.done .dot    { background: #16a34a; }
+    .step-list li.active span  { color: #1e293b; font-weight: 600; }
+    .step-list li.done span    { color: #166534; }
+
+    /* ── RESULT STATE ── */
+    .state-result { display: none; }
+    .tl-banner {
+      border-radius: 10px; padding: 1.4rem 1.25rem; margin-bottom: 1.25rem;
+      text-align: center;
+    }
+    .tl-banner .tl-flag {
+      font-size: 1.35rem; font-weight: 800; color: #fff; margin-bottom: 0.4rem;
+    }
+    .tl-banner .tl-summary {
+      font-size: 0.85rem; color: rgba(255,255,255,0.9); line-height: 1.5;
+    }
+    .tl-green { background: #16a34a; }
+    .tl-amber { background: #d97706; }
+    .tl-red   { background: #dc2626; }
+
+    .check-list { margin-bottom: 1.25rem; }
+    .check-row {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      padding: 0.6rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.82rem;
+    }
+    .check-row:last-child { border-bottom: none; }
+    .check-badge {
+      font-size: 0.65rem; font-weight: 700; color: #fff;
+      padding: 2px 6px; border-radius: 3px; flex-shrink: 0; margin-top: 1px;
+    }
+    .badge-green { background: #16a34a; }
+    .badge-amber { background: #d97706; }
+    .badge-red   { background: #dc2626; }
+
+    .check-label { font-weight: 600; color: #1e293b; }
+    .check-msg   { color: #64748b; margin-top: 1px; }
+
+    .email-note {
+      background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;
+      padding: 0.9rem 1rem; font-size: 0.82rem; color: #166534; margin-bottom: 1.25rem;
+    }
+    .email-note strong { display: block; margin-bottom: 0.2rem; }
+
+    .disclaimer {
+      font-size: 0.72rem; color: #94a3b8; line-height: 1.6;
+      border-top: 1px solid #e2e8f0; padding-top: 1rem; margin-top: 0.5rem;
+    }
+
+    /* ── ERROR STATE ── */
+    .state-error { display: none; text-align: center; }
+    .state-error h1 { font-size: 1.2rem; font-weight: 800; margin-bottom: 0.75rem; color: #dc2626; }
+    .state-error p  { color: #64748b; font-size: 0.88rem; line-height: 1.6; }
+
+    .back-link {
+      display: inline-block; margin-top: 1.5rem;
+      font-size: 0.82rem; color: #2563eb; text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
+
+  <div class="brand">SubdivideIQ</div>
+
   <div class="card">
-    <div class="icon">✅</div>
-    <h1>Your report is being generated</h1>
-    <p>Check your email in 60 seconds — your SubdivideIQ feasibility report will be waiting for you.</p>
-    <p>We're running zone checks, overlay analysis, slope assessment, and stormwater proximity checks now.</p>
-    <div class="note">
-      <strong>Didn't receive it?</strong> Check your spam folder. The email comes from hello@subdivideiq.com.au. If still missing, <a href="mailto:hello@subdivideiq.com.au">contact us</a>.
+
+    <!-- PENDING -->
+    <div class="state-pending" id="statePending">
+      <div class="spinner"></div>
+      <h1>Generating your report&hellip;</h1>
+      <p>Check your email in around 60 seconds.</p>
+      <div class="address-line" id="pendingAddress"></div>
+      <ul class="step-list" id="stepList">
+        <li id="s1"><span class="dot"></span><span>Zone &amp; planning overlays</span></li>
+        <li id="s2"><span class="dot"></span><span>Flood overlay analysis</span></li>
+        <li id="s3"><span class="dot"></span><span>Slope &amp; elevation check</span></li>
+        <li id="s4"><span class="dot"></span><span>Stormwater proximity</span></li>
+        <li id="s5"><span class="dot"></span><span>Character overlay</span></li>
+        <li id="s6"><span class="dot"></span><span>Lot size viability</span></li>
+        <li id="s7"><span class="dot"></span><span>PDF generation &amp; email delivery</span></li>
+      </ul>
     </div>
+
+    <!-- RESULT -->
+    <div class="state-result" id="stateResult">
+      <div class="tl-banner" id="tlBanner">
+        <div class="tl-flag" id="tlFlag"></div>
+        <div class="tl-summary" id="tlSummary"></div>
+      </div>
+      <div class="address-line" id="resultAddress"></div>
+      <div class="check-list" id="checkList"></div>
+      <div class="email-note">
+        <strong>Your full PDF report has been emailed to you.</strong>
+        Didn't receive it? Check spam. Email comes from hello@clearoffer.com.au.
+        Still missing? <a href="mailto:hello@subdivideiq.com.au" style="color:#166534;">Contact us</a>.
+      </div>
+      <a href="/" class="back-link">&#8592; Run another address</a>
+      <div class="disclaimer">
+        DISCLAIMER: This report is a pre-screen tool only — not engineering or legal advice.
+        Always engage qualified professionals before making development or financial decisions.
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div class="state-error" id="stateError">
+      <h1>Something went wrong</h1>
+      <p id="errorMsg">We couldn't generate your report. Please contact us and we'll process it manually.</p>
+      <div class="email-note" style="text-align:left;margin-top:1rem;">
+        <strong>Email us:</strong>
+        <a href="mailto:hello@subdivideiq.com.au" style="color:#166534;">hello@subdivideiq.com.au</a><br>
+        Include your address and payment confirmation.
+      </div>
+      <a href="/" class="back-link">&#8592; Try again</a>
+    </div>
+
   </div>
+
+  <script>
+    const CHECK_LABELS = {
+      zone:       'Zone & Minimum Lot Size',
+      flood:      'Flood Overlay',
+      elevation:  'Slope & Elevation',
+      stormwater: 'Stormwater Infrastructure',
+      character:  'Character Overlay',
+      lotsize:    'Lot Size Viability'
+    }
+    const FLAG_LABELS = {
+      GREEN: 'GREEN — LIKELY VIABLE',
+      AMBER: 'AMBER — PROCEED WITH CAUTION',
+      RED:   'RED — SIGNIFICANT CONSTRAINT'
+    }
+    const FLAG_CLASSES  = { GREEN: 'tl-green', AMBER: 'tl-amber', RED: 'tl-red' }
+    const BADGE_CLASSES = { GREEN: 'badge-green', AMBER: 'badge-amber', RED: 'badge-red' }
+
+    const params    = new URLSearchParams(location.search)
+    const sessionId = params.get('session_id')
+    const savedAddr = sessionStorage.getItem('subdivideiq_address') || ''
+
+    if (savedAddr) {
+      document.getElementById('pendingAddress').textContent = savedAddr
+    }
+
+    if (!sessionId) {
+      showError('No session ID found. Please return to the home page.')
+    } else {
+      animateSteps()
+      pollStatus()
+    }
+
+    // ── Animate step list (cosmetic progress) ──────────────────────────────────
+    let stepIdx = 0
+    const steps = ['s1','s2','s3','s4','s5','s6','s7']
+
+    function animateSteps() {
+      if (stepIdx < steps.length) {
+        if (stepIdx > 0) markStep(steps[stepIdx - 1], 'done')
+        markStep(steps[stepIdx], 'active')
+        stepIdx++
+        setTimeout(animateSteps, 6000 + Math.random() * 2000)
+      }
+    }
+
+    function markStep(id, cls) {
+      const el = document.getElementById(id)
+      if (!el) return
+      el.className = cls
+    }
+
+    // ── Poll /api/report-status ────────────────────────────────────────────────
+    let pollCount = 0
+    const MAX_POLLS = 40 // ~3 min at 5s intervals
+
+    function pollStatus() {
+      fetch('/api/report-status?session_id=' + encodeURIComponent(sessionId))
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'PENDING' || !data.status) {
+            pollCount++
+            if (pollCount >= MAX_POLLS) {
+              showError('Report generation is taking longer than expected. Please check your email in a few minutes or contact us.')
+            } else {
+              setTimeout(pollStatus, 5000)
+            }
+          } else if (data.status === 'ERROR') {
+            showError('We encountered an error generating your report. Please contact us.')
+          } else {
+            // Mark all steps done
+            steps.forEach(id => markStep(id, 'done'))
+            setTimeout(() => showResult(data), 400)
+          }
+        })
+        .catch(() => {
+          pollCount++
+          if (pollCount < MAX_POLLS) setTimeout(pollStatus, 5000)
+        })
+    }
+
+    // ── Show result ────────────────────────────────────────────────────────────
+    function showResult(data) {
+      const flag = data.status || 'AMBER'
+
+      // Traffic light banner
+      const banner = document.getElementById('tlBanner')
+      banner.className = 'tl-banner ' + (FLAG_CLASSES[flag] || 'tl-amber')
+      document.getElementById('tlFlag').textContent    = FLAG_LABELS[flag] || flag
+      document.getElementById('tlSummary').textContent = data.flags?.overall?.summary || ''
+
+      // Address
+      const addr = data.address || savedAddr
+      document.getElementById('resultAddress').textContent = addr
+
+      // Per-check rows
+      const checks = data.flags?.checks || {}
+      const checkList = document.getElementById('checkList')
+      checkList.innerHTML = ''
+      const checkOrder = ['zone','flood','elevation','stormwater','character','lotsize']
+      for (const key of checkOrder) {
+        const c = checks[key]
+        if (!c) continue
+        const f = c.flag || 'AMBER'
+        const row = document.createElement('div')
+        row.className = 'check-row'
+        row.innerHTML = `
+          <span class="check-badge ${BADGE_CLASSES[f] || 'badge-amber'}">${f}</span>
+          <div>
+            <div class="check-label">${CHECK_LABELS[key] || key}</div>
+            <div class="check-msg">${esc(c.message || '')}</div>
+          </div>`
+        checkList.appendChild(row)
+      }
+
+      document.getElementById('statePending').style.display = 'none'
+      document.getElementById('stateResult').style.display  = 'block'
+    }
+
+    function showError(msg) {
+      document.getElementById('errorMsg').textContent = msg || ''
+      document.getElementById('statePending').style.display = 'none'
+      document.getElementById('stateError').style.display   = 'block'
+    }
+
+    function esc(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    }
+  </script>
+
 </body>
 </html>
