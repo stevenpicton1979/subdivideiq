@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-04-05 — ARCH-1 Resolution + check-parcel wired into feasibility
+
+### ARCH-1 Decision
+Decision: use live QLD DCDB API (spatial-gis.information.qld.gov.au/arcgis/rest/services/PlanningCadastre/LandParcelPropertyFramework/MapServer/4) for all non-BCC addresses. BCC Supabase remains primary for Brisbane. Do NOT run load-all-suburbs.js.
+
+### check-parcel.js verification — 3/3 PASS
+
+| Test | Coordinates | Result | Source | lot/plan |
+|------|-------------|--------|--------|----------|
+| BCC — 6 Glenheaton Court | -27.5107, 153.1015 | PASS ✅ | supabase_bcc | lot=15 RP182797 1086m² |
+| Gold Coast — Surfers Paradise | -27.9826, 153.4082 | PASS ✅ | dcdb | lot=100 SP290016 128300m² |
+| Moreton Bay — Narangba | -27.0397, 152.9625 | PASS ✅ | dcdb | lot=122 SP171577 3994m² |
+
+All DCDB responses under 3s. BCC Supabase response immediate.
+
+### feasibility.js — check-parcel wired in
+Added `resolveAreaM2(lat, lng)` helper that calls check-parcel.js handler with mock GET req when `area_m2` is not provided in the POST body. Covers Gold Coast, Moreton Bay, Sunshine Coast addresses where the client doesn't supply area_m2.
+
+---
+
 ## 2026-04-06 — Full State Sync (Option C)
 
 ### Changes made

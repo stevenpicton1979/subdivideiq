@@ -169,30 +169,8 @@ Start Claude Code in the subdivideiq repo and say:
 
 ## PRE-LAUNCH TASKS
 
-### [ ] ARCH-1: QLD State-wide Cadastral API investigation
-DECISION: Before running load-all-suburbs.js, test the QLD DCDB real-time API.
-
-Background: SubdivideIQ currently uses bulk BCC parcel data (Brisbane only, partial load).
-Expanding to Gold Coast/Moreton Bay etc requires separate bulk loads per council —
-expensive on Supabase storage. QLD Government maintains a state-wide Digital Cadastral
-Database (DCDB) accessible via QSPATIAL WFS endpoint — query by coordinate at runtime,
-covers all QLD, no bulk storage needed.
-
-Steve's preference: real-time API + Supabase cache on first lookup per address.
-
-Investigation steps:
-1. Find the QSPATIAL WFS endpoint for DCDB parcel layer
-2. Test coordinate lookup for:
-   - -27.5107753964089, 153.101573168291 (Brisbane — 6 Glenheaton Court)
-   - -27.9700, 153.4000 (Gold Coast)
-   - -27.0333, 152.9667 (Moreton Bay)
-3. Measure response time
-4. If <5 seconds and returns valid lot polygon: write api/geocode-qld.js,
-   test 5 SEQ addresses, report in OVERNIGHT_LOG.md, add task to replace
-   BCC bulk approach with real-time + Supabase cache
-5. If unreliable or >5s: fall back to running load-all-suburbs.js
-
-DO NOT run load-all-suburbs.js until this investigation is complete.
+### [x] ARCH-1: QLD State-wide Cadastral API investigation
+Resolved 6 April 2026. Decision: live DCDB API (spatial-gis.information.qld.gov.au/arcgis/rest/services/PlanningCadastre/LandParcelPropertyFramework/MapServer/4) for all non-BCC addresses. BCC Supabase remains primary for Brisbane. check-parcel.js implements this. Do NOT run load-all-suburbs.js.
 
 ### [ ] DOMAIN: Purchase subdivideiq.com.au
 - Register via VentraIP (same account as other domains)

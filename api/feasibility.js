@@ -22,8 +22,14 @@
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { lat, lng, geom_geojson, area_m2, suburb } = req.body || {}
+  const { lat, lng, geom_geojson, suburb } = req.body || {}
+  let { area_m2 } = req.body || {}
   if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' })
+
+  // Resolve area_m2 from DCDB if not provided (covers non-BCC addresses)
+  if (!area_m2) {
+    area_m2 = await resolveAreaM2(lat, lng)
+  }
 
   try {
     // 1. Run zone check first — need min_lot_size_m2 for lotsize check
@@ -122,6 +128,29 @@ module.exports = async (req, res) => {
     console.error('feasibility aggregator error:', err.message)
     return res.status(500).json({ error: 'Feasibility check failed' })
   }
+}
+
+/**
+ * Resolve area_m2 via check-parcel.js (BCC Supabase or QLD DCDB).
+ * Called when the client didn't supply area_m2 — covers non-BCC SEQ addresses.
+ */
+async function resolveAreaM2(lat, lng) {
+  return new Promise((resolve) => {
+    const parcelHandler = require('./check-parcel')
+    const mockReq = {
+      method: 'GET',
+      query: { lat: String(lat), lng: String(lng) }
+    }
+    const mockRes = {
+      _status: 200,
+      status(c) { this._status = c; return this },
+      json(data) {
+        resolve(data?.area_m2 ?? null)
+      },
+      end() { resolve(null) }
+    }
+    Promise.resolve(parcelHandler(mockReq, mockRes)).catch(() => resolve(null))
+  })
 }
 
 /**
