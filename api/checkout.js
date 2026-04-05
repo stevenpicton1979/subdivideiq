@@ -22,7 +22,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const BASE_URL = process.env.BASE_URL || 'https://subdivideiq.com.au'
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*')
+  res.setHeader('Access-Control-Allow-Origin', (process.env.ALLOWED_ORIGIN || '*').trim())
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 

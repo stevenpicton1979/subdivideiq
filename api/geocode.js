@@ -21,7 +21,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://fzykfxesznyiigoyeyed.s
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*')
+  res.setHeader('Access-Control-Allow-Origin', (process.env.ALLOWED_ORIGIN || '*').trim())
   res.setHeader('Content-Type', 'application/json')
 
   if (req.method === 'OPTIONS') return res.status(200).end()
