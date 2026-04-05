@@ -378,7 +378,14 @@
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
   <script>
-    const MAPBOX_TOKEN = '__MAPBOX_TOKEN__' // replaced by server or left blank (autocomplete still works)
+    let MAPBOX_TOKEN = ''
+
+    // Fetch real token from server on page load — non-blocking
+    // Autocomplete does not need this token (uses backend). Map init does.
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(d => { if (d.mapboxToken) MAPBOX_TOKEN = d.mapboxToken })
+      .catch(() => console.warn('SubdivideIQ: could not load map config — map will be unavailable'))
 
     const addressInput   = document.getElementById('address-input')
     const resultsBox     = document.getElementById('autocomplete-results')
@@ -485,7 +492,7 @@
     }
 
     function renderMap(parcel) {
-      if (!MAPBOX_TOKEN || MAPBOX_TOKEN === '__MAPBOX_TOKEN__') {
+      if (!MAPBOX_TOKEN) {
         mapContainer.innerHTML = '<div style="background:#f1f5f9;height:200px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;">Map requires Mapbox token</div>'
         return
       }
