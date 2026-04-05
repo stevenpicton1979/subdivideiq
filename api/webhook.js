@@ -41,6 +41,9 @@ async function readRawBody(req) {
   })
 }
 
+// Vercel: disable body parser so we can read raw stream for Stripe signature verification
+module.exports.config = { api: { bodyParser: false } }
+
 module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' })
