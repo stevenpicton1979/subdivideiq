@@ -3,33 +3,272 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SubdivideIQ — Subdivision Feasibility for Brisbane Homeowners</title>
+  <title>SubdivideIQ — Can you subdivide your block?</title>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111; }
-    header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
-    header h1 { font-size: 1.25rem; font-weight: 700; }
-    header span { color: #6b7280; font-size: 0.875rem; }
-    .hero { max-width: 640px; margin: 4rem auto 2rem; padding: 0 1.5rem; text-align: center; }
-    .hero h2 { font-size: 2rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem; }
-    .hero p { color: #4b5563; font-size: 1.1rem; margin-bottom: 2rem; }
-    .search-box { background: #fff; border: 2px solid #e5e7eb; border-radius: 12px; padding: 1.5rem; max-width: 540px; margin: 0 auto; }
-    .search-box label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
-    .search-box input { width: 100%; padding: 0.75rem 1rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; }
-    .search-box input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-    .btn { width: 100%; padding: 0.875rem; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
-    .btn:hover { background: #1d4ed8; }
-    .how-it-works { max-width: 640px; margin: 3rem auto; padding: 0 1.5rem; }
-    .how-it-works h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; text-align: center; }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 800; color: #1e293b; }
+    header span { color: #6b7280; font-size: 0.825rem; }
+
+    .hero {
+      max-width: 640px;
+      margin: 3rem auto 2rem;
+      padding: 0 1.5rem;
+    }
+
+    .hero h2 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: #0f172a;
+      margin-bottom: 0.75rem;
+    }
+    .hero p.sub {
+      color: #4b5563;
+      font-size: 1.05rem;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    /* Search card */
+    .search-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 1.75rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .search-card label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.875rem;
+      color: #374151;
+      margin-bottom: 0.5rem;
+    }
+    .search-wrap { position: relative; }
+    .search-card input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+      color: #0f172a;
+      margin-bottom: 1rem;
+      transition: border-color 0.15s;
+    }
+    .search-card input:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    #autocomplete-results {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      width: 100%;
+      z-index: 200;
+      max-height: 220px;
+      overflow-y: auto;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      top: calc(100% - 1rem);
+    }
+    #autocomplete-results div {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #374151;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    #autocomplete-results div:last-child { border-bottom: none; }
+    #autocomplete-results div:hover { background: #eff6ff; }
+
+    .btn-check {
+      width: 100%;
+      padding: 1rem;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-check:hover { background: #1d4ed8; }
+    .btn-check:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    .price-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.75rem;
+    }
+    .price-tag {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .trust-signals {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .trust-pill {
+      background: #f0fdf4;
+      color: #166534;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.625rem;
+      border-radius: 999px;
+      border: 1px solid #bbf7d0;
+    }
+
+    /* Lot preview panel */
+    #lot-preview {
+      display: none;
+      margin-top: 1.25rem;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+    #map-container {
+      width: 100%;
+      height: 200px;
+    }
+    .lot-meta {
+      background: #f8fafc;
+      padding: 0.875rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.875rem;
+    }
+    .lot-meta strong { color: #1e293b; }
+    .lot-meta span { color: #6b7280; }
+
+    /* Locked traffic light preview */
+    #tl-preview {
+      display: none;
+      margin-top: 1rem;
+      background: #f8fafc;
+      border: 1.5px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+      position: relative;
+    }
+    .tl-lock {
+      position: absolute;
+      top: -10px;
+      right: 14px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.625rem;
+      border-radius: 999px;
+    }
+    .tl-dots {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 0.75rem;
+    }
+    .tl-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      opacity: 0.25;
+    }
+    .tl-dot.red   { background: #dc2626; }
+    .tl-dot.amber { background: #d97706; }
+    .tl-dot.green { background: #16a34a; }
+    #tl-preview p {
+      font-size: 0.85rem;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    #tl-preview strong { color: #374151; }
+
+    /* How it works */
+    .how-it-works {
+      max-width: 640px;
+      margin: 3rem auto;
+      padding: 0 1.5rem;
+    }
+    .how-it-works h3 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
     .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
     .step { text-align: center; padding: 1rem; }
-    .step .num { width: 2rem; height: 2rem; background: #2563eb; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; margin: 0 auto 0.75rem; }
-    .step p { font-size: 0.875rem; color: #4b5563; }
-    .price-note { text-align: center; color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem; }
-    #autocomplete-results { position: absolute; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; z-index: 10; max-height: 200px; overflow-y: auto; display: none; }
-    #autocomplete-results div { padding: 0.75rem 1rem; cursor: pointer; font-size: 0.9rem; }
-    #autocomplete-results div:hover { background: #f3f4f6; }
-    .search-wrap { position: relative; }
+    .step .num {
+      width: 2rem; height: 2rem;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      margin: 0 auto 0.75rem;
+      font-size: 0.9rem;
+    }
+    .step p { font-size: 0.85rem; color: #4b5563; line-height: 1.5; }
+
+    .origin-card {
+      max-width: 640px;
+      margin: 0 auto 3rem;
+      padding: 0 1.5rem;
+    }
+    .origin-inner {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+    }
+    .origin-inner h4 { font-size: 0.9rem; font-weight: 700; color: #92400e; margin-bottom: 0.5rem; }
+    .origin-inner p  { font-size: 0.85rem; color: #78350f; line-height: 1.6; }
+
+    /* Email input step */
+    #email-step {
+      display: none;
+      margin-top: 1rem;
+    }
+    #email-step label { display: block; font-size: 0.875rem; font-weight: 700; color: #374151; margin-bottom: 0.5rem; }
+    #email-step input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    #email-step input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #ffffff55; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 480px) {
+      .hero h2 { font-size: 1.75rem; }
+      .steps    { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -40,9 +279,11 @@
 
   <div class="hero">
     <h2>Can you subdivide your block?</h2>
-    <p>Get a traffic light feasibility report in 60 seconds — before you spend $7,500 finding out the hard way.</p>
+    <p class="sub">
+      Find out in 60 seconds — before you spend $7,500 on consultants to answer a yes/no question.
+    </p>
 
-    <div class="search-box">
+    <div class="search-card">
       <label for="address-input">Enter your Brisbane address</label>
       <div class="search-wrap">
         <input
@@ -53,100 +294,268 @@
         />
         <div id="autocomplete-results"></div>
       </div>
-      <button class="btn" id="check-btn">Check my block — $79</button>
-      <p class="price-note">Instant report · PDF emailed · No planning knowledge required</p>
-    </div>
 
-    <div class="how-it-works" style="margin-top:2rem;">
-      <h3>How it works</h3>
-      <div class="steps">
-        <div class="step">
-          <div class="num">1</div>
-          <p>Enter your address — we check zone, overlays, lot size, slope and drainage</p>
+      <!-- Lot preview (shown after address selected) -->
+      <div id="lot-preview">
+        <div id="map-container"></div>
+        <div class="lot-meta">
+          <div>
+            <strong id="lot-label">—</strong><br>
+            <span id="lot-area">—</span>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-size:0.75rem;color:#9ca3af;">Lot boundary confirmed</span>
+          </div>
         </div>
-        <div class="step">
-          <div class="num">2</div>
-          <p>Pay $79 — see your GREEN / AMBER / RED result with plain-English explanations</p>
+      </div>
+
+      <!-- Locked traffic light preview -->
+      <div id="tl-preview">
+        <span class="tl-lock">🔒 Unlocked after payment</span>
+        <div class="tl-dots">
+          <div class="tl-dot red"></div>
+          <div class="tl-dot amber"></div>
+          <div class="tl-dot green"></div>
         </div>
-        <div class="step">
-          <div class="num">3</div>
-          <p>Get your PDF report — know exactly which consultants to call and what it'll cost</p>
+        <p>
+          <strong>Your result is ready.</strong><br>
+          We've checked zone rules, flood overlays, slope, stormwater infrastructure, and lot size viability.<br>
+          Pay $79 to unlock your full report.
+        </p>
+      </div>
+
+      <!-- Email input (shown after lot confirmed) -->
+      <div id="email-step">
+        <label for="email-input">Your email address (report sent here)</label>
+        <input type="email" id="email-input" placeholder="you@example.com" />
+      </div>
+
+      <div class="price-row">
+        <span class="price-tag" id="price-label">$79</span>
+        <div class="trust-signals">
+          <span class="trust-pill">60 second report</span>
+          <span class="trust-pill">PDF emailed</span>
+          <span class="trust-pill">Not legal advice</span>
         </div>
+      </div>
+
+      <button class="btn-check" id="check-btn" style="margin-top:1rem;">
+        Check my block
+      </button>
+    </div>
+  </div>
+
+  <div class="how-it-works">
+    <h3>How it works</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <p>Enter your address — we check zone rules, overlays, lot size, slope and drainage in seconds</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <p>Pay $79 — see your GREEN / AMBER / RED result with plain-English explanations and cost estimates</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <p>Get your PDF report — know exactly which consultants to call, in what order, and what it'll cost</p>
       </div>
     </div>
   </div>
 
-  <script>
-    const input = document.getElementById('address-input')
-    const results = document.getElementById('autocomplete-results')
-    const btn = document.getElementById('check-btn')
-    let selectedAddress = null
-    let selectedLat = null
-    let selectedLng = null
+  <div class="origin-card">
+    <div class="origin-inner">
+      <h4>Why we built this</h4>
+      <p>
+        We attempted to subdivide a Brisbane lot in 2024. First the town planner said "should be possible."
+        We engaged a surveyor, then a hydraulics engineer for a full RPEQ-signed TUFLOW report.
+        Total spend: $7,500. Then the engineer confirmed the flood overlay made the rear lot commercially unviable.
+        <strong>Nobody surfaced that constraint upfront.</strong>
+        SubdivideIQ is the pre-screen that would have saved us that $7,500.
+      </p>
+    </div>
+  </div>
 
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+  <script>
+    const MAPBOX_TOKEN = '__MAPBOX_TOKEN__' // replaced by server or left blank (autocomplete still works)
+
+    const addressInput   = document.getElementById('address-input')
+    const resultsBox     = document.getElementById('autocomplete-results')
+    const checkBtn       = document.getElementById('check-btn')
+    const lotPreview     = document.getElementById('lot-preview')
+    const mapContainer   = document.getElementById('map-container')
+    const tlPreview      = document.getElementById('tl-preview')
+    const emailStep      = document.getElementById('email-step')
+    const emailInput     = document.getElementById('email-input')
+    const lotLabel       = document.getElementById('lot-label')
+    const lotArea        = document.getElementById('lot-area')
+    const priceLabel     = document.getElementById('price-label')
+
+    let selectedAddress = null
+    let selectedLat     = null
+    let selectedLng     = null
+    let parcelData      = null
+    let mapInstance     = null
+    let addressConfirmed = false
+
+    // ── Address autocomplete ──────────────────────────────────────────────────
     let debounceTimer
-    input.addEventListener('input', () => {
+    addressInput.addEventListener('input', () => {
       clearTimeout(debounceTimer)
-      const q = input.value.trim()
-      if (q.length < 4) { results.style.display = 'none'; return }
+      const q = addressInput.value.trim()
+      if (q.length < 4) { resultsBox.style.display = 'none'; return }
       debounceTimer = setTimeout(() => fetchSuggestions(q), 300)
     })
 
     async function fetchSuggestions(q) {
       try {
-        const res = await fetch(`/api/geocode?address=${encodeURIComponent(q)}&suggest=true`)
-        const data = await res.json()
-        if (!data.suggestions || !data.suggestions.length) { results.style.display = 'none'; return }
-        results.innerHTML = ''
-        data.suggestions.forEach(s => {
+        const r = await fetch('/api/geocode?address=' + encodeURIComponent(q) + '&suggest=true')
+        const d = await r.json()
+        if (!d.suggestions || !d.suggestions.length) { resultsBox.style.display = 'none'; return }
+        resultsBox.innerHTML = ''
+        d.suggestions.forEach(s => {
           const div = document.createElement('div')
           div.textContent = s.place_name
           div.addEventListener('click', () => {
-            input.value = s.place_name
-            selectedAddress = s.place_name
-            selectedLat = s.lat
-            selectedLng = s.lng
-            results.style.display = 'none'
+            addressInput.value  = s.place_name
+            selectedAddress     = s.place_name
+            selectedLat         = s.lat
+            selectedLng         = s.lng
+            resultsBox.style.display = 'none'
+            loadParcel(s.place_name, s.lat, s.lng)
           })
-          results.appendChild(div)
+          resultsBox.appendChild(div)
         })
-        results.style.display = 'block'
+        resultsBox.style.display = 'block'
       } catch (e) {
-        results.style.display = 'none'
+        resultsBox.style.display = 'none'
       }
     }
 
     document.addEventListener('click', e => {
-      if (!results.contains(e.target) && e.target !== input) {
-        results.style.display = 'none'
+      if (!resultsBox.contains(e.target) && e.target !== addressInput) {
+        resultsBox.style.display = 'none'
       }
     })
 
-    btn.addEventListener('click', async () => {
-      const address = selectedAddress || input.value.trim()
-      if (!address) { alert('Please enter your property address'); return }
-      btn.disabled = true
-      btn.textContent = 'Checking address...'
+    // ── Load parcel + show map ────────────────────────────────────────────────
+    async function loadParcel(address, lat, lng) {
+      checkBtn.disabled = true
+      checkBtn.innerHTML = '<span class="spinner"></span>Looking up lot boundary…'
+
       try {
-        const res = await fetch('/api/geocode', {
-          method: 'POST',
+        const r = await fetch('/api/geocode', {
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address, lat: selectedLat, lng: selectedLng })
+          body:    JSON.stringify({ address, lat, lng })
         })
-        const data = await res.json()
-        if (!data.lot) {
-          btn.disabled = false
-          btn.textContent = 'Check my block — $79'
+        parcelData = await r.json()
+
+        if (!parcelData.lot) {
+          checkBtn.disabled = false
+          checkBtn.textContent = 'Check my block'
           alert('Address not found in Brisbane parcel data. Please check the address and try again.')
           return
         }
-        // Store parcel data and proceed to checkout
-        sessionStorage.setItem('subdivideiq_parcel', JSON.stringify(data))
-        window.location.href = '/api/checkout?address=' + encodeURIComponent(address)
+
+        // Show lot details
+        const lotStr = parcelData.lot && parcelData.plan ? `Lot ${parcelData.lot} on ${parcelData.plan}` : 'Lot found'
+        const areaStr = parcelData.area_m2 ? `${Math.round(parcelData.area_m2).toLocaleString()} m²` : ''
+        lotLabel.textContent = lotStr
+        lotArea.textContent  = areaStr
+
+        // Show map
+        lotPreview.style.display = 'block'
+        renderMap(parcelData)
+
+        // Show locked traffic light + email step
+        tlPreview.style.display  = 'block'
+        emailStep.style.display  = 'block'
+        priceLabel.textContent   = '$79 AUD'
+
+        addressConfirmed = true
+        checkBtn.disabled = false
+        checkBtn.textContent = 'Get my SubdivideIQ report — $79'
       } catch (e) {
-        btn.disabled = false
-        btn.textContent = 'Check my block — $79'
-        alert('Something went wrong. Please try again.')
+        checkBtn.disabled = false
+        checkBtn.textContent = 'Check my block'
+        console.error('Parcel lookup failed:', e)
+      }
+    }
+
+    function renderMap(parcel) {
+      if (!MAPBOX_TOKEN || MAPBOX_TOKEN === '__MAPBOX_TOKEN__') {
+        mapContainer.innerHTML = '<div style="background:#f1f5f9;height:200px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;">Map requires Mapbox token</div>'
+        return
+      }
+      if (mapInstance) { mapInstance.remove(); mapInstance = null }
+      mapbox = mapboxgl.Map({
+        container: 'map-container',
+        style:  'mapbox://styles/mapbox/streets-v12',
+        center: [parcel.centroid_lng, parcel.centroid_lat],
+        zoom:   17,
+        accessToken: MAPBOX_TOKEN
+      })
+      mapInstance = mapbox
+
+      mapbox.on('load', () => {
+        if (parcel.geom_geojson) {
+          mapbox.addSource('lot', { type: 'geojson', data: { type: 'Feature', geometry: parcel.geom_geojson } })
+          mapbox.addLayer({ id: 'lot-fill',   type: 'fill',   source: 'lot', paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.2 } })
+          mapbox.addLayer({ id: 'lot-border', type: 'line',   source: 'lot', paint: { 'line-color': '#2563eb', 'line-width': 2 } })
+        }
+        new mapboxgl.Marker({ color: '#2563eb' })
+          .setLngLat([parcel.centroid_lng, parcel.centroid_lat])
+          .addTo(mapbox)
+      })
+    }
+
+    // ── Main CTA button ───────────────────────────────────────────────────────
+    checkBtn.addEventListener('click', async () => {
+      if (!addressConfirmed) {
+        // First click — just try the entered address directly
+        const address = addressInput.value.trim()
+        if (!address) { alert('Please enter your property address'); return }
+        selectedAddress = address
+        await loadParcel(address, selectedLat, selectedLng)
+        return
+      }
+
+      // Second click after lot confirmed — proceed to checkout
+      const email = emailInput.value.trim()
+      if (!email || !email.includes('@')) {
+        emailInput.focus()
+        emailInput.style.borderColor = '#dc2626'
+        setTimeout(() => emailInput.style.borderColor = '', 2000)
+        alert('Please enter your email address to receive the report.')
+        return
+      }
+
+      checkBtn.disabled = true
+      checkBtn.innerHTML = '<span class="spinner"></span>Redirecting to checkout…'
+
+      try {
+        const r = await fetch('/api/checkout', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            address:  selectedAddress || addressInput.value.trim(),
+            email,
+            lat:  parcelData?.centroid_lat  || selectedLat,
+            lng:  parcelData?.centroid_lng  || selectedLng
+          })
+        })
+        const d = await r.json()
+        if (d.url) {
+          window.location.href = d.url
+        } else {
+          throw new Error(d.error || 'Checkout failed')
+        }
+      } catch (e) {
+        checkBtn.disabled = false
+        checkBtn.textContent = 'Get my SubdivideIQ report — $79'
+        alert('Payment setup failed: ' + e.message + '. Please try again.')
       }
     })
   </script>
