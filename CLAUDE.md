@@ -9,6 +9,10 @@
 - api.resend.com
 - api.stripe.com
 
+## portfoliostate updates
+- Always git -C C:/dev/portfoliostate pull origin main before modifying STATE.md
+- Never write STATE.md without pulling first
+
 ## Critical rules
 - Never combine cd and git in the same command
 - Use $func$ not $$ for Supabase SQL functions
