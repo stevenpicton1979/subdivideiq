@@ -172,12 +172,16 @@
 
   <script>
     const CHECK_LABELS = {
-      zone:       'Zone & Minimum Lot Size',
-      flood:      'Flood Overlay',
-      elevation:  'Slope & Elevation',
-      stormwater: 'Stormwater Infrastructure',
-      character:  'Character Overlay',
-      lotsize:    'Lot Size Viability'
+      zone:          'Zone & Minimum Lot Size',
+      flood:         'Flood Overlay',
+      elevation:     'Slope & Elevation',
+      stormwater:    'Stormwater Infrastructure',
+      character:     'Character Overlay',
+      lotsize:       'Lot Size Viability',
+      contaminated:  'Contaminated Land Register',
+      infrastructure:'Infrastructure Charges',
+      easements:     'Powerline Easements',
+      acidsulfate:   'Acid Sulfate Soils'
     }
     const FLAG_LABELS = {
       GREEN: 'GREEN — LIKELY VIABLE',
@@ -268,7 +272,7 @@
       const checks = data.flags?.checks || {}
       const checkList = document.getElementById('checkList')
       checkList.innerHTML = ''
-      const checkOrder = ['zone','flood','elevation','stormwater','character','lotsize']
+      const checkOrder = ['zone','flood','elevation','stormwater','character','lotsize','contaminated','infrastructure','easements','acidsulfate']
       for (const key of checkOrder) {
         const c = checks[key]
         if (!c) continue

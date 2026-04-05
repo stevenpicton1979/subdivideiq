@@ -4,11 +4,13 @@
  * POST /api/feasibility
  * Body: { lat, lng, geom_geojson, area_m2 }
  *
- * Runs all 6 feasibility checks in parallel via Promise.all, then aggregates:
+ * Runs all 10 feasibility checks in parallel via Promise.all, then aggregates:
  *   Any RED → overall RED
  *   2+ AMBER → overall AMBER (leaning RED, noted)
  *   1 AMBER → overall AMBER
  *   All GREEN → overall GREEN
+ *
+ * Sprint 2B additions: contaminated, infrastructure, easements, acidsulfate
  *
  * Returns the complete feasibility object including:
  * - Overall traffic light result
@@ -20,7 +22,7 @@
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { lat, lng, geom_geojson, area_m2 } = req.body || {}
+  const { lat, lng, geom_geojson, area_m2, suburb } = req.body || {}
   if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' })
 
   try {
@@ -36,20 +38,31 @@ module.exports = async (req, res) => {
     const floodImmunityM = deriveImmunityLevel(floodResult)
 
     // 3. Run all remaining checks in parallel
-    const [elevResult, swResult, charResult, lotsizeResult] = await Promise.all([
-      runCheck('check-elevation', { lat, lng, geom_geojson, flood_min_immunity_m: floodImmunityM }, req),
-      runCheck('check-stormwater', { lat, lng }, req),
-      runCheck('check-character', { lat, lng }, req),
-      runCheck('check-lotsize', { lat, lng, geom_geojson, area_m2, min_lot_size_m2: minLot }, req)
+    const [
+      elevResult, swResult, charResult, lotsizeResult,
+      contamResult, infraResult, easementResult, acidResult
+    ] = await Promise.all([
+      runCheck('check-elevation',     { lat, lng, geom_geojson, flood_min_immunity_m: floodImmunityM }, req),
+      runCheck('check-stormwater',    { lat, lng }, req),
+      runCheck('check-character',     { lat, lng }, req),
+      runCheck('check-lotsize',       { lat, lng, geom_geojson, area_m2, min_lot_size_m2: minLot }, req),
+      runCheck('check-contaminated',  { lat, lng }, req),
+      runCheck('check-infrastructure',{ lat, lng, suburb }, req),
+      runCheck('check-easements',     { lat, lng }, req),
+      runCheck('check-acidsulfate',   { lat, lng }, req)
     ])
 
     const checks = {
-      zone: zoneResult,
-      flood: floodResult,
-      elevation: elevResult,
-      stormwater: swResult,
-      character: charResult,
-      lotsize: lotsizeResult
+      zone:          zoneResult,
+      flood:         floodResult,
+      elevation:     elevResult,
+      stormwater:    swResult,
+      character:     charResult,
+      lotsize:       lotsizeResult,
+      contaminated:  contamResult,
+      infrastructure:infraResult,
+      easements:     easementResult,
+      acidsulfate:   acidResult
     }
 
     // Aggregate flags
@@ -126,6 +139,7 @@ async function runCheck(checkName, body, _parentReq) {
     const mockRes = {
       _status: 200,
       _body: null,
+      setHeader() { return this },
       status(code) { this._status = code; return this },
       json(data) { this._body = data; resolve(data); return this },
       end() { resolve(null); return this }
@@ -222,12 +236,15 @@ function buildConsultantSequence(checks, overallFlag) {
     urgency: 'After all technical reports are complete'
   })
 
+  const infraCharge = checks.infrastructure?.estimated_charge_per_lot
+    ? '$' + checks.infrastructure.estimated_charge_per_lot.toLocaleString('en-AU')
+    : '$28,000–$32,000'
   steps.push({
     step: steps.length + 1,
-    who: 'Infrastructure charges',
-    why: 'BCC levies infrastructure charges for each new lot created',
-    cost: '$20,000–$30,000 per new lot (varies by zone and services)',
-    urgency: 'Payable at DA approval — factor into your financial model upfront'
+    who: 'Infrastructure charges (BCC)',
+    why: 'BCC levies infrastructure charges for each new lot created — this is a mandatory cost, not optional',
+    cost: `${infraCharge} per additional lot (payable at DA approval)`,
+    urgency: 'Factor into your financial model before engaging any consultants'
   })
 
   return steps

@@ -26,12 +26,16 @@ const FLAG_COLOURS = {
 }
 
 const CHECK_LABELS = {
-  zone:        'Zone & Minimum Lot Size',
-  flood:       'Flood Overlay',
-  elevation:   'Slope & Elevation',
-  stormwater:  'Stormwater Infrastructure',
-  character:   'Character Overlay',
-  lotsize:     'Lot Size Viability'
+  zone:          'Zone & Minimum Lot Size',
+  flood:         'Flood Overlay',
+  elevation:     'Slope & Elevation',
+  stormwater:    'Stormwater Infrastructure',
+  character:     'Character Overlay',
+  lotsize:       'Lot Size Viability',
+  contaminated:  'Contaminated Land Register',
+  infrastructure:'Infrastructure Charges',
+  easements:     'Powerline Easements',
+  acidsulfate:   'Acid Sulfate Soils'
 }
 
 async function generatePdf({ address, feasibility, parcel }) {

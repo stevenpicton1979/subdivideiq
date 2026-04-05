@@ -274,7 +274,12 @@ function buildEmailHtml(address, feasibility) {
   const checks = feasibility?.checks || {}
   const checkRows = Object.entries(checks).map(([key, c]) => {
     if (!c) return ''
-    const label = { zone: 'Zone', flood: 'Flood', elevation: 'Slope', stormwater: 'Stormwater', character: 'Character', lotsize: 'Lot Size' }[key] || key
+    const label = {
+      zone: 'Zone', flood: 'Flood', elevation: 'Slope', stormwater: 'Stormwater',
+      character: 'Character', lotsize: 'Lot Size', contaminated: 'Contaminated Land',
+      infrastructure: 'Infrastructure Charges', easements: 'Powerline Easements',
+      acidsulfate: 'Acid Sulfate Soils'
+    }[key] || key
     const fColour = colours[c.flag] || colours.AMBER
     return `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#1e293b;">
