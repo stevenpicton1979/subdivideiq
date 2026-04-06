@@ -199,16 +199,16 @@
       document.getElementById('pendingAddress').textContent = savedAddr
     }
 
+    // ── Animate step list (cosmetic progress) ──────────────────────────────────
+    let stepIdx = 0
+    const steps = ['s1','s2','s3','s4','s5','s6','s7']
+
     if (!sessionId) {
       showError('No session ID found. Please return to the home page.')
     } else {
       animateSteps()
       pollStatus()
     }
-
-    // ── Animate step list (cosmetic progress) ──────────────────────────────────
-    let stepIdx = 0
-    const steps = ['s1','s2','s3','s4','s5','s6','s7']
 
     function animateSteps() {
       if (stepIdx < steps.length) {
