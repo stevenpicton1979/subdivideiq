@@ -135,6 +135,60 @@ async function generatePdf({ address, feasibility, parcel }) {
 
       y = pillY + 32
 
+      // ── KEY NUMBERS BLOCK ─────────────────────────────────────────────────────
+      if (y > doc.page.height - 180) { doc.addPage(); y = 50 }
+      y += 4
+      doc.fontSize(11).fillColor('#0f172a').font('Helvetica-Bold')
+        .text('Key Numbers', 50, y)
+      y += 14
+
+      const keyNumbers = []
+      const areaM2 = parcel?.area_m2 || feasibility?.address_meta?.area_m2
+      if (areaM2) {
+        keyNumbers.push(['Lot area', `${Math.round(areaM2).toLocaleString()}m\u00b2`])
+      }
+      if (checks.zone?.zone_name) {
+        keyNumbers.push(['Zone', checks.zone.zone_name])
+      }
+      if (checks.zone?.council) {
+        const cn = checks.zone.council
+        keyNumbers.push(['Council', cn.charAt(0).toUpperCase() + cn.slice(1)])
+      }
+      if (checks.zone?.min_lot_size_m2) {
+        keyNumbers.push(['Min lot size (zone)', `${checks.zone.min_lot_size_m2}m\u00b2`])
+      }
+      // Best indicative split
+      if (checks.lotsize?.option_a_60_40?.viable) {
+        const a = checks.lotsize.option_a_60_40
+        keyNumbers.push(['Indicative split (60/40)', `${a.front_lot_m2}m\u00b2 front / ${a.rear_lot_m2}m\u00b2 rear`])
+      } else if (checks.lotsize?.option_b_50_50?.viable) {
+        const b = checks.lotsize.option_b_50_50
+        keyNumbers.push(['Indicative split (50/50)', `${b.front_lot_m2}m\u00b2 front / ${b.rear_lot_m2}m\u00b2 rear`])
+      }
+      // Buffer above minimum
+      if (checks.zone?.min_lot_size_m2 && areaM2) {
+        const buffer = Math.round(areaM2) - 2 * checks.zone.min_lot_size_m2
+        keyNumbers.push(['Buffer above minimum', buffer >= 0 ? `+${buffer}m\u00b2` : `${buffer}m\u00b2 (shortfall)`])
+      }
+      // Infrastructure charge
+      if (checks.infrastructure?.estimated_charge_per_lot) {
+        keyNumbers.push(['Infrastructure charge (est.)', `$${checks.infrastructure.estimated_charge_per_lot.toLocaleString('en-AU')} per new lot`])
+      }
+      keyNumbers.push(['SubdivideIQ pre-screen saved', '~$7,500 in consultant fees'])
+
+      // Render as simple key-value rows
+      for (let i = 0; i < keyNumbers.length; i++) {
+        if (y > doc.page.height - 50) { doc.addPage(); y = 50 }
+        const rowH = 17
+        if (i % 2 === 0) doc.rect(50, y, pageW, rowH).fill('#f8fafc')
+        doc.fontSize(8).fillColor('#6b7280').font('Helvetica')
+          .text(keyNumbers[i][0], 56, y + 4, { width: pageW / 2 - 10 })
+        doc.fontSize(8).fillColor('#0f172a').font('Helvetica-Bold')
+          .text(keyNumbers[i][1], 56 + pageW / 2, y + 4, { width: pageW / 2 - 10, align: 'right' })
+        y += rowH
+      }
+      y += 10
+
       // ── PER-CHECK SECTIONS ───────────────────────────────────────────────────
       doc.fontSize(13).fillColor('#0f172a').font('Helvetica-Bold')
         .text('Feasibility Check Results', 50, y)
@@ -262,6 +316,52 @@ async function generatePdf({ address, feasibility, parcel }) {
         y += 28
       }
 
+      // ── DATA SOURCES & SCOPE ─────────────────────────────────────────────────
+      if (y > doc.page.height - 220) { doc.addPage(); y = 50 }
+      y += 8
+      doc.fontSize(11).fillColor('#0f172a').font('Helvetica-Bold')
+        .text('What SubdivideIQ Checked — and What It Didn\'t', 50, y)
+      y += 14
+
+      const dataSources = [
+        ['Zone & lot size', 'ZoneIQ Supabase / QLD DCDB', 'All SEQ (7 councils)'],
+        ['Flood overlay', 'BCC City Plan (Supabase) + QFAO fallback', 'All SEQ + QFAO state fallback'],
+        ['Slope & elevation', 'QLD DEM via ArcGIS ImageServer', 'All of Queensland'],
+        ['Stormwater infrastructure', 'BCC pipe & drain data (Supabase)', 'Brisbane metro only'],
+        ['Character overlay', 'ZoneIQ Supabase', 'Brisbane only'],
+        ['Contaminated land', 'Not checked (no free spatial API)', 'Manual check required'],
+        ['Infrastructure charges', 'BCC ICR 2026 / council estimate', 'BCC exact; others indicative'],
+        ['Powerline easements', 'BCC City Plan ArcGIS', 'Brisbane only'],
+        ['Acid sulfate soils', 'BCC City Plan ArcGIS', 'Brisbane only'],
+      ]
+
+      // Table header
+      doc.rect(50, y, pageW, 16).fill('#f1f5f9')
+      doc.fontSize(7).fillColor('#374151').font('Helvetica-Bold')
+        .text('Check', 56, y + 5)
+        .text('Data Source', 185, y + 5)
+        .text('Coverage', 380, y + 5)
+      y += 16
+
+      for (let i = 0; i < dataSources.length; i++) {
+        if (y > doc.page.height - 50) { doc.addPage(); y = 50 }
+        const rowH = 14
+        if (i % 2 === 0) doc.rect(50, y, pageW, rowH).fill('#f9fafb')
+        doc.fontSize(7).fillColor('#1e293b').font('Helvetica')
+          .text(dataSources[i][0], 56,  y + 4, { width: 125 })
+          .text(dataSources[i][1], 185, y + 4, { width: 185 })
+          .text(dataSources[i][2], 380, y + 4, { width: 155 })
+        y += rowH
+      }
+
+      y += 6
+      const notChecked = [
+        'What SubdivideIQ did NOT check: development applications (PD Online), sewerage & water headworks, road frontage easements on title, body corporate or covenant restrictions, building envelope restrictions.'
+      ]
+      doc.fontSize(7).fillColor('#64748b').font('Helvetica')
+        .text(notChecked[0], 50, y, { width: pageW })
+      y += doc.heightOfString(notChecked[0], { width: pageW }) + 4
+
       // ── DISCLAIMER FOOTER ─────────────────────────────────────────────────────
       if (y > doc.page.height - 120) {
         doc.addPage()
@@ -278,6 +378,7 @@ async function generatePdf({ address, feasibility, parcel }) {
         'It is not a replacement for: a hydraulics report (RPEQ-signed, legally required for flood-affected lots), a cadastral survey, or a town planner assessment.',
         'SubdivideIQ is an inspector, not an engineer. Think of this report as a building pre-purchase inspection — it tells you whether to bother paying the engineer.',
         'Always engage qualified professionals before making development or financial decisions. Information is based on publicly available data and may not reflect recent amendments.',
+        'Coverage: SubdivideIQ currently covers all of South East Queensland (Brisbane, Gold Coast, Moreton Bay, Sunshine Coast, Ipswich, Logan and Redland councils). Other QLD councils use state-level data where available.',
         'SubdivideIQ Pty Ltd accepts no liability for decisions made based on this report.'
       ]
 

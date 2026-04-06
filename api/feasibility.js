@@ -109,6 +109,12 @@ module.exports = async (req, res) => {
     // Total indicative cost range
     const costRange = buildCostRange(checks, overallFlag)
 
+    // Coverage warning — council is null means zone lookup found no data for this address
+    const council = zoneResult?.council || null
+    const coverageWarning = !council
+      ? 'This address is outside SubdivideIQ\'s zone coverage area. Zone and character overlay checks returned no data. Other checks (flood, slope, stormwater, infrastructure) still ran using available data sources. Consult a local town planner for zone-specific guidance.'
+      : null
+
     return res.json({
       overall: {
         flag: overallFlag,
@@ -120,6 +126,7 @@ module.exports = async (req, res) => {
         grey_count: Object.values(checks).filter(c => c?.flag === 'GREY').length
       },
       checks,
+      coverage_warning: coverageWarning,
       what_to_do_next: consultantSequence,
       cost_range: costRange,
       address_meta: { lat, lng, area_m2 },
@@ -206,24 +213,85 @@ function deriveImmunityLevel(floodResult) {
 }
 
 /**
- * Build a plain-English consultant sequence for the "what to do next" section.
+ * Build a priority-ordered consultant sequence for the "what to do next" section.
+ * Rules:
+ *   - Contaminated: check register (free) FIRST if flagged
+ *   - Flood RED: hydraulics engineer BEFORE town planner
+ *   - Steep slope: geotech BEFORE surveyor
+ *   - Flood AMBER: hydraulics AFTER town planner
  */
 function buildConsultantSequence(checks, overallFlag) {
   const steps = []
+  const council = checks.zone?.council || null
+  const isBcc   = council === 'brisbane'
+  const infraCharge = checks.infrastructure?.estimated_charge_per_lot
+    ? '$' + checks.infrastructure.estimated_charge_per_lot.toLocaleString('en-AU')
+    : isBcc ? '$28,000–$32,000' : '$15,000–$40,000'
 
+  // Step 0: Contaminated land register — free manual check, do before any spend
+  if (checks.contaminated?.flag === 'AMBER') {
+    steps.push({
+      step: steps.length + 1,
+      who: 'QLD DES contaminated land register (free check)',
+      why: 'Before spending on professionals, verify the lot is not on the QLD Environmental Management Register (EMR) or Contaminated Land Register (CLR). Contamination can add $20,000–$100,000+ in remediation costs or render a subdivision commercially unviable.',
+      cost: 'Free — search at environment.des.qld.gov.au',
+      urgency: 'Do this before engaging any consultants'
+    })
+  }
+
+  // Flood RED: hydraulics before town planner — confirms quickly if it\'s a hard no
+  if (overallFlag === 'RED' && checks.flood?.flag === 'RED') {
+    steps.push({
+      step: steps.length + 1,
+      who: 'Hydraulics engineer (RPEQ-signed)',
+      why: 'The flood overlay on this lot is a high-risk category. Before spending on a town planner, a hydraulics engineer can quickly confirm whether the rear lot can achieve flood immunity — or whether the constraint is an absolute blocker.',
+      cost: '$4,000–$8,000 for initial flood immunity assessment',
+      urgency: 'First paid step — do this before engaging a town planner'
+    })
+    steps.push({
+      step: steps.length + 1,
+      who: 'Town planner',
+      why: 'If the hydraulics engineer confirms flood immunity is achievable, a town planner can confirm whether the red flag constraints are engineerable — and what the full feasibility path looks like.',
+      cost: '$500–$1,500 for an initial feasibility opinion',
+      urgency: 'After hydraulics engineer assessment'
+    })
+    steps.push({
+      step: steps.length + 1,
+      who: isBcc ? 'Infrastructure charges (BCC ICR)' : 'Infrastructure charges (contact your council)',
+      why: isBcc
+        ? 'BCC levies infrastructure charges for each new lot created — this is a mandatory cost, not optional'
+        : 'Your council levies infrastructure charges for each new lot created — rates differ by council.',
+      cost: `${infraCharge} per additional lot (payable at DA approval)`,
+      urgency: 'Factor into your financial model before any further spend'
+    })
+    return steps
+  }
+
+  // General RED (non-flood): town planner first
   if (overallFlag === 'RED') {
     steps.push({
-      step: 1,
+      step: steps.length + 1,
       who: 'Town planner',
       why: 'Confirm whether the red flag constraints are absolute blockers or can be engineered around',
       cost: '$500–$1,500 for an initial feasibility opinion',
       urgency: 'Do this before spending anything else'
     })
+    steps.push({
+      step: steps.length + 1,
+      who: isBcc ? 'Infrastructure charges (BCC ICR)' : 'Infrastructure charges (contact your council)',
+      why: isBcc
+        ? 'BCC levies infrastructure charges for each new lot created — mandatory cost'
+        : 'Your council levies infrastructure charges for each new lot created. Confirm rates before budgeting.',
+      cost: `${infraCharge} per additional lot (payable at DA approval)`,
+      urgency: 'Factor into your financial model before any further spend'
+    })
     return steps
   }
 
+  // AMBER / GREEN: full sequence with priority ordering
+
   steps.push({
-    step: 1,
+    step: steps.length + 1,
     who: 'Town planner',
     why: 'Confirm zone compliance, overlay implications, and the best split configuration for your lot',
     cost: '$1,500–$3,000',
@@ -234,43 +302,39 @@ function buildConsultantSequence(checks, overallFlag) {
     steps.push({
       step: steps.length + 1,
       who: 'Hydraulics engineer (RPEQ-signed)',
-      why: 'Required for any lot with flood overlay — assesses immunity levels and drainage requirements',
+      why: 'Required for any lot with flood overlay — assesses immunity levels and drainage requirements. Must be RPEQ-signed for council submission.',
       cost: '$4,000–$8,000',
       urgency: 'After town planner confirms overall viability'
+    })
+  }
+
+  // Geotech BEFORE surveyor when steep
+  if (checks.elevation?.slope_class === 'STEEP') {
+    steps.push({
+      step: steps.length + 1,
+      who: 'Geotechnical engineer',
+      why: 'Steep slope requires soil stability assessment for earthworks and footings — this affects both construction cost and whether the rear lot is commercially viable. Get this before committing to surveyor fees.',
+      cost: '$3,000–$6,000',
+      urgency: 'Before committing to surveyor and DA preparation'
     })
   }
 
   steps.push({
     step: steps.length + 1,
     who: 'Land surveyor (cadastral)',
-    why: 'Prepares the plan of subdivision and lot boundaries for lodgement',
+    why: 'Prepares the plan of subdivision and lot boundaries for lodgement with council',
     cost: '$2,000–$4,000',
     urgency: 'After town planner confirms split configuration'
   })
 
-  if (checks.elevation?.slope_class === 'STEEP') {
-    steps.push({
-      step: steps.length + 1,
-      who: 'Geotechnical engineer',
-      why: 'Steep slope requires soil stability assessment for earthworks and footings',
-      cost: '$3,000–$6,000',
-      urgency: 'If proceeding on a steep lot'
-    })
-  }
-
   steps.push({
     step: steps.length + 1,
     who: 'Development application (DA)',
-    why: 'Formal council approval for the subdivision',
+    why: 'Formal council approval for the subdivision — the town planner prepares and lodges this on your behalf',
     cost: '$3,000–$8,000 (council fees + planner preparation)',
     urgency: 'After all technical reports are complete'
   })
 
-  const council = checks.zone?.council || null
-  const isBcc   = council === 'brisbane'
-  const infraCharge = checks.infrastructure?.estimated_charge_per_lot
-    ? '$' + checks.infrastructure.estimated_charge_per_lot.toLocaleString('en-AU')
-    : isBcc ? '$28,000–$32,000' : '$15,000–$40,000'
   steps.push({
     step: steps.length + 1,
     who: isBcc ? 'Infrastructure charges (BCC ICR)' : 'Infrastructure charges (contact your council)',

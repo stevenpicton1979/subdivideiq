@@ -100,7 +100,7 @@ module.exports = async (req, res) => {
         status: 'NONE',
         flag: 'GREEN',
         message: 'No flood overlay identified on this lot',
-        plain_english: 'No flood planning area applies to this lot. No hydraulics report required for subdivision.',
+        plain_english: 'No flood planning area applies to this lot. No hydraulics report required for flood reasons. Note: flood overlay was the constraint that killed the 6 Glenheaton Court subdivision — this lot does not have that problem.',
         cost_time_implication: null,
         overlays: [],
         has_river_flood: false,

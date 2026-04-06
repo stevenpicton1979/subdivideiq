@@ -265,6 +265,29 @@
     .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #ffffff55; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    .coverage-note {
+      font-size: 0.72rem;
+      color: #9ca3af;
+      margin-top: 0.75rem;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .pre-screen-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+    }
+    .pre-screen-badge.green  { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+    .pre-screen-badge.amber  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+    .pre-screen-badge.red    { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+    .pre-screen-badge.grey   { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+
     @media (max-width: 480px) {
       .hero h2 { font-size: 1.75rem; }
       .steps    { grid-template-columns: 1fr; }
@@ -342,7 +365,14 @@
       <button class="btn-check" id="check-btn" style="margin-top:1rem;">
         Check my block
       </button>
+
+      <!-- Free pre-screen badges (shown after address selected) -->
+      <div id="pre-screen-panel" style="display:none;margin-top:0.75rem;">
+        <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.4rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Instant pre-screen</div>
+        <div id="pre-screen-badges" style="display:flex;gap:0.5rem;flex-wrap:wrap;"></div>
+      </div>
     </div>
+    <p class="coverage-note">Currently covers all of South East Queensland — Brisbane, Gold Coast, Moreton Bay, Sunshine Coast, Ipswich, Logan and Redland councils.</p>
   </div>
 
   <div class="how-it-works">
@@ -484,6 +514,13 @@
         addressConfirmed = true
         checkBtn.disabled = false
         checkBtn.textContent = 'Get my SubdivideIQ report — $79'
+
+        // Free instant pre-screen (zone + flood)
+        runFreePreScreen(
+          parcelData.centroid_lat || lat,
+          parcelData.centroid_lng || lng,
+          parcelData.area_m2
+        )
       } catch (e) {
         checkBtn.disabled = false
         checkBtn.textContent = 'Check my block'
@@ -516,6 +553,59 @@
           .setLngLat([parcel.centroid_lng, parcel.centroid_lat])
           .addTo(mapbox)
       })
+    }
+
+    // ── Free instant pre-screen (zone + flood) ───────────────────────────────
+    async function runFreePreScreen(lat, lng, area_m2) {
+      const panel  = document.getElementById('pre-screen-panel')
+      const badges = document.getElementById('pre-screen-badges')
+      panel.style.display = 'block'
+      badges.innerHTML = '<span class="pre-screen-badge grey">Checking zone &amp; flood…</span>'
+
+      try {
+        const [zoneData, floodData] = await Promise.all([
+          fetch('/api/check-zone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng, area_m2 })
+          }).then(r => r.json()).catch(() => null),
+          fetch('/api/check-flood', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng })
+          }).then(r => r.json()).catch(() => null)
+        ])
+
+        badges.innerHTML = ''
+
+        if (zoneData) {
+          const cls = (zoneData.flag || 'GREY').toLowerCase()
+          const label = zoneData.zone_name
+            ? `Zone: ${zoneData.zone_name}`
+            : 'Zone: not found'
+          badges.innerHTML += `<span class="pre-screen-badge ${cls}">${escBadge(label)}</span>`
+        }
+
+        if (floodData) {
+          const cls = (floodData.flag || 'GREY').toLowerCase()
+          const label = floodData.flag === 'GREEN'
+            ? 'Flood: clear'
+            : floodData.flag === 'RED'
+              ? 'Flood: high risk'
+              : 'Flood: overlay present'
+          badges.innerHTML += `<span class="pre-screen-badge ${cls}">${escBadge(label)}</span>`
+        }
+
+        if (!badges.innerHTML) {
+          badges.innerHTML = '<span class="pre-screen-badge grey">Pre-screen unavailable</span>'
+        }
+      } catch {
+        badges.innerHTML = '<span class="pre-screen-badge grey">Pre-screen unavailable</span>'
+      }
+    }
+
+    function escBadge(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     }
 
     // ── Main CTA button ───────────────────────────────────────────────────────

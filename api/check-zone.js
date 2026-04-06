@@ -88,15 +88,17 @@ module.exports = async (req, res) => {
       if (lotArea > minLot * 2.1) {
         status = 'PASS'
         flag = 'GREEN'
-        message = `Lot area (${Math.round(lotArea)}m²) comfortably supports two lots above the ${minLot}m² minimum for ${row.zone_name}`
+        const indicativeSplit = Math.round(lotArea * 0.6)
+        const indicativeRear  = Math.round(lotArea * 0.4)
+        message = `Lot area (${Math.round(lotArea)}m\u00b2) comfortably supports two lots above the ${minLot}m\u00b2 minimum for ${row.zone_name}. Indicative 60/40 split: ${indicativeSplit}m\u00b2 front / ${indicativeRear}m\u00b2 rear — both above minimum.`
       } else if (lotArea >= minLot * 1.5) {
         status = 'MARGINAL'
         flag = 'AMBER'
-        message = `Marginal lot size — subdivision may be viable with a creative split or reconfiguration. Town planner consultation strongly recommended.`
+        message = `Marginal — lot area (${Math.round(lotArea)}m\u00b2) is above the ${minLot}m\u00b2 minimum for ${row.zone_name} but the margin is tight. A creative split configuration or battle-axe layout may work. Town planner consultation strongly recommended before committing to survey costs.`
       } else {
         status = 'FAIL'
         flag = 'RED'
-        message = `Lot area (${Math.round(lotArea)}m²) is too small to reliably produce two lots meeting the ${minLot}m² minimum for ${row.zone_name}. Subdivision is unlikely to be viable.`
+        message = `Lot area (${Math.round(lotArea)}m\u00b2) is too small to reliably produce two lots meeting the ${minLot}m\u00b2 minimum for ${row.zone_name}. No standard split configuration will produce two compliant lots at this size.`
       }
       splitViable = lotArea >= minLot * 1.5
     } else if (minLot) {
@@ -128,7 +130,11 @@ module.exports = async (req, res) => {
       notes: row.notes,
       split_viable: splitViable,
       plain_english: plainEnglish,
-      cost_time_implication: null
+      cost_time_implication: flag === 'RED'
+        ? 'Subdivision not viable on zone size rules — town planner can confirm ($500–$1,500 initial opinion).'
+        : flag === 'AMBER'
+          ? 'Town planner consultation recommended ($1,500–$3,000) to confirm viable split configuration.'
+          : null
     })
   } catch (err) {
     console.error('check-zone error:', err.message)

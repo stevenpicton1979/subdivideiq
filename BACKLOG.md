@@ -185,6 +185,45 @@ Resolved 6 April 2026. Decision: live DCDB API (spatial-gis.information.qld.gov.
 
 ---
 
+## SPRINT 5 — Report Depth, Value & Coverage ✅ COMPLETE
+
+### [x] S5-0: Coverage disclosure
+- Add notice to index.html below search card: "Currently covers all of South East Queensland — Brisbane, Gold Coast, Moreton Bay, Sunshine Coast, Ipswich, Logan and Redland councils."
+- Add coverage line to PDF disclaimer section
+- Add `coverage_warning` field to feasibility.js API response when council is null
+- Display amber banner on confirmation.html if `coverage_warning` present
+
+### [x] S5-1: Expand per-check narratives
+- Richer template messages for all 10 checks — PASS/MARGINAL/FAIL variants for zone, RED/AMBER/NONE for flood, STEEP/MODERATE/FLAT for slope, etc.
+- Ensure `cost_time_implication` populated for all relevant states
+
+### [x] S5-2: Key Numbers block in PDF
+- Two-column table after traffic light panel: lot area, zone, min lot size, indicative split, buffer above minimum, infra charge, council, "pre-screen saved $7,500"
+
+### [x] S5-3: AI-driven consultant sequencing
+- buildConsultantSequence priority rules: contaminated first, flood RED → hydraulics before planner, steep → geotech before surveyor
+
+### [x] S5-4: Risk summary on confirmation page
+- "Watch out for" section above check list showing RED/AMBER checks with one-line implications
+
+### [x] S5-5: "Cost saved" callout on confirmation page
+- Green callout box below traffic light banner; add red count message if RED checks present
+
+### [x] S5-6: Data sources and scope disclosure in PDF
+- "What SubdivideIQ Checked — and What It Didn't" section before disclaimer
+
+### [x] S5-7: Free instant pre-screen on landing page
+- Auto-call /api/check-zone and /api/check-flood after address selection
+- Show inline zone + flood badges on map panel
+
+### [x] S5-8: Download PDF button on confirmation page
+- New api/download-report.js endpoint (regenerate PDF from stored feasibility data)
+- Add download button to confirmation.html
+
+### [x] S5-9: Update BACKLOG.md — mark all S5 tasks [x]
+
+---
+
 ## FUTURE SPRINTS (do not build yet)
 
 ### [ ] F1: Building works pre-screen
