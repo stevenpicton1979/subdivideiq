@@ -209,3 +209,132 @@ Resolved 6 April 2026. Decision: live DCDB API (spatial-gis.information.qld.gov.
 
 ### [ ] F8: Real estate agent tier
 - Bulk address upload, white-label report
+# SubdivideIQ Backlog Additions — 6 April 2026
+# Add these to /c/dev/subdivideiq/BACKLOG.md
+
+## Post-launch bug fixes [ ]
+
+### BUG-1: Confirmation page hangs after payment [ ]
+- Symptom: /confirmation.html spins indefinitely after successful payment
+- Report generates and emails correctly — UI polling never resolves
+- Fix: check confirmation.html polling logic — likely waiting for a status flag
+  that never gets set in subdivide_reports table, or polling wrong field
+
+### BUG-2: lotsize error when DCDB parcel lookup fails [ ]
+- Symptom: lotsize check returns `{"error": "area_m2 required"}` when address
+  is outside DCDB coverage or parcel lookup returns null
+- Fix: feasibility.js should handle null area_m2 gracefully — return GREY/NOT_AVAILABLE
+  for lotsize check rather than crashing, same pattern as stormwater GREY
+
+### BUG-3: Infrastructure charge defaults to BCC when council is null [ ]
+- Symptom: when zone lookup fails (council = null), infrastructure check returns
+  BCC rates ($28,730) instead of generic non-BCC message
+- Fix: in check-infrastructure.js, treat null council same as non-BCC council —
+  return generic "contact your council" response
+
+### BUG-4: what_to_do_next step 4 hardcoded as BCC [ ]
+- Symptom: "Infrastructure charges (BCC)" appears in next steps for all addresses
+  including Gold Coast, Moreton Bay etc.
+- Fix: make next steps infrastructure item council-aware — use generic language
+  for non-BCC councils
+
+### BUG-5: Stripe webhooks firing for wrong product [ ]
+- Symptom: both subdivide-live-webhook and whatcanibuild-destination fire on every
+  checkout.session.completed event across the whole Stripe account
+- Risk: if WhatCanIBuild webhook processes a SubdivideIQ payment it sends wrong email
+- Fix options:
+  a) Add product metadata to Stripe session and check in each webhook handler
+  b) Separate Stripe accounts per product (bigger change)
+  c) Single webhook handler that routes by metadata
+  Recommended: option (a) — add `product: 'subdivideiq'` to session metadata in
+  checkout.js, check in webhook.js and reject if product !== 'subdivideiq'
+
+### BUG-6: UTF-8 encoding — verify fix [ ]
+- The vercel.json charset fix was deployed — recheck API responses for clean
+  em-dashes and m² symbols. Run:
+  curl -s -X POST https://subdivide.whatcanibuild.com.au/api/feasibility \
+    -H "Content-Type: application/json" \
+    -d '{"lat":-27.4975,"lng":153.0211,"address":"6 Glenheaton Court, Carindale"}' \
+    | grep -o '.\{20\}m².\{20\}'
+  Should show clean ² not \u00c2\u00b2
+
+---
+
+## Sprint 16 — QFAO Statewide Flood Fallback [ ]
+
+**Goal:** For addresses outside the 7 councils with existing flood overlay data,
+fall back to the Queensland Floodplain Assessment Overlay (QFAO) API instead
+of returning no data.
+
+**Endpoint:**
+https://services8.arcgis.com/g9mppFwSsmIw9E0Z/arcgis/rest/services/Queensland_floodplain_assessment_overlay/FeatureServer/0/query
+
+**Query pattern:**
+- geometry: point (lng, lat)
+- geometryType: esriGeometryPoint
+- spatialRel: esriSpatialRelIntersects
+- inSR: 4326
+- f: json
+
+**Response fields to use:** SUB_NAME, SUB_NUMBER, QRA_SUPPLY
+
+**Logic:**
+1. Check if address falls within existing 7-council bounding boxes
+2. If yes: use existing Supabase flood data — DO NOT change this path
+3. If no: query QFAO endpoint live at runtime
+4. If QFAO returns a polygon: flag as FLOOD_RISK_POSSIBLE
+5. If QFAO returns nothing: flag as NO_STATE_FLOOD_OVERLAY
+
+**Disclaimer to include in API response for QFAO results:**
+"This flood assessment is based on the Queensland state-level floodplain
+overlay and is not property-specific. Contact your local council for
+detailed flood mapping."
+
+**Rules:**
+- Do NOT ingest QFAO data into Supabase — live query only
+- Do NOT modify existing flood overlay logic for the 7 current councils
+- This is ZoneIQ Sprint 16 data — SubdivideIQ should call ZoneIQ API not QFAO directly
+
+---
+
+## Reddit launch posts — NOT YET POSTED [ ]
+
+### r/Brisbane post:
+Title: Lost $7,500 trying to subdivide in Carindale. Built something so it doesn't happen to you.
+
+Body:
+Two years ago I engaged a town planner, surveyor, and an RPEQ-signed hydraulics engineer
+to assess a subdivision at a property in Carindale. Total spend: $7,500. The hydraulics
+report came back and confirmed a flood overlay made the rear lot commercially unviable.
+
+The data was publicly available the whole time. Nobody checked it first.
+
+I'm a developer (software, not property) so I spent the last few months building a
+pre-screen tool — zone rules, flood overlays, slope, stormwater, lot size, character
+overlays. Spits out a traffic light report in 60 seconds.
+
+It's called SubdivideIQ and it lives at whatcanibuild.com.au/subdivide if anyone's
+curious. $79 for the full report.
+
+Happy to answer any questions about how subdivision works in SEQ — learned a lot the
+expensive way.
+
+### r/AusPropertyChat post:
+Title: Built a subdivision pre-screen tool for QLD after losing $7,500 finding out
+my block wasn't viable
+
+Body:
+After spending $7,500 on consultants (town planner, surveyor, hydraulics engineer) to
+assess a Carindale block, the final report confirmed a flood overlay made subdivision
+unviable. The constraint was in publicly available data the whole time.
+
+Built SubdivideIQ to pre-screen viability before anyone spends money on consultants.
+Checks zone rules, flood overlays, slope, stormwater proximity, character overlays,
+lot size viability, contaminated land flag, and infrastructure charge estimates.
+
+Traffic light result (GREEN/AMBER/RED) + PDF report emailed. $79 AUD.
+
+subdivide.whatcanibuild.com.au
+
+Currently covers all of South East QLD via the QLD cadastral database. Not legal
+advice — it's a starting point before you engage professionals.
