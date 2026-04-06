@@ -17,9 +17,27 @@
  * Cost/time implications:
  *   Any flood overlay → hydraulics report required ($4,000–$8,000, 6–8 weeks, RPEQ-signed)
  *   High categories → likely RED result (rear lot build form commercially unviable)
+ *
+ * Fallback for addresses outside the 7 covered councils:
+ *   Queries the QLD Floodplain Assessment Overlay (QFAO) via ArcGIS REST API.
+ *   QFAO is a state-level overlay — less granular than council data but better than nothing.
  */
 
 const { getClient } = require('./lib/db')
+
+// Combined bounding box covering all 7 councils with Supabase flood data:
+// Brisbane, Gold Coast, Moreton Bay, Sunshine Coast, Ipswich, Logan, Redland
+const SEQ_COVERAGE_BBOX = {
+  minLat: -28.25,
+  maxLat: -26.25,
+  minLng: 152.30,
+  maxLng: 153.65
+}
+
+// Queensland Floodplain Assessment Overlay — state-level, queried live for non-SEQ addresses
+// ArcGIS Online org: V70KGACJ4H63jKE8, layer ID 42 (confirmed April 2026)
+const QFAO_URL =
+  'https://services3.arcgis.com/V70KGACJ4H63jKE8/arcgis/rest/services/Floodplain_Assessment_Overlay_v2_QRA1/FeatureServer/42/query'
 
 // Categories that trigger RED immediately
 const RED_CATEGORIES = ['FHA_R1', 'FHA_R2A', 'FHA_R2B']
@@ -36,6 +54,15 @@ module.exports = async (req, res) => {
 
   const { lat, lng, geom_geojson, area_m2 } = req.body || {}
   if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' })
+
+  // Route: addresses outside the 7 covered councils → QFAO state-level fallback
+  const inSeq =
+    lat >= SEQ_COVERAGE_BBOX.minLat && lat <= SEQ_COVERAGE_BBOX.maxLat &&
+    lng >= SEQ_COVERAGE_BBOX.minLng && lng <= SEQ_COVERAGE_BBOX.maxLng
+
+  if (!inSeq) {
+    return checkFloodQfao(lat, lng, res)
+  }
 
   const client = getClient()
   try {
@@ -182,5 +209,88 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'Flood check failed', check: 'flood', flag: 'AMBER' })
   } finally {
     await client.end()
+  }
+}
+
+/**
+ * QFAO fallback — used for addresses outside the 7 SEQ councils.
+ * Queries the QLD state-level Floodplain Assessment Overlay at runtime.
+ * Less granular than council data — indicates potential flood risk only.
+ */
+async function checkFloodQfao(lat, lng, res) {
+  const QFAO_DISCLAIMER =
+    'This flood assessment is based on the Queensland state-level floodplain overlay and is not property-specific. Contact your local council for detailed flood mapping.'
+
+  try {
+    const params = new URLSearchParams({
+      geometry:     `${lng},${lat}`,
+      geometryType: 'esriGeometryPoint',
+      spatialRel:   'esriSpatialRelIntersects',
+      inSR:         '4326',
+      outFields:    'SUB_NAME,SUB_NUMBER,QRA_SUPPLY',
+      f:            'json'
+    })
+
+    const qfaoRes = await fetch(`${QFAO_URL}?${params}`, {
+      signal: AbortSignal.timeout(8000)
+    })
+
+    if (!qfaoRes.ok) {
+      console.error('check-flood QFAO HTTP error:', qfaoRes.status)
+      return res.status(502).json({
+        error: 'Flood check failed — state overlay unavailable',
+        check: 'flood',
+        flag: 'AMBER'
+      })
+    }
+
+    const data = await qfaoRes.json()
+
+    if (!data.features || data.features.length === 0) {
+      return res.json({
+        check: 'flood',
+        status: 'NO_STATE_FLOOD_OVERLAY',
+        flag: 'GREEN',
+        message: 'No state floodplain overlay identified at this location.',
+        plain_english: `No Queensland floodplain assessment overlay applies to this location. ${QFAO_DISCLAIMER}`,
+        cost_time_implication: null,
+        overlays: [],
+        has_river_flood: false,
+        has_overland_flow: false,
+        highest_category: null,
+        source: 'qfao',
+        disclaimer: QFAO_DISCLAIMER
+      })
+    }
+
+    // One or more QFAO polygons intersect — flag as possible flood risk
+    const feature = data.features[0].attributes
+    const subName   = feature.SUB_NAME   || null
+    const subNumber = feature.SUB_NUMBER || null
+
+    const nameStr = subName ? ` (${subName}${subNumber ? ' #' + subNumber : ''})` : ''
+    const message = `Queensland state floodplain overlay${nameStr} intersects this location. Contact your local council for property-level flood mapping detail.`
+
+    return res.json({
+      check: 'flood',
+      status: 'FLOOD_RISK_POSSIBLE',
+      flag: 'AMBER',
+      message,
+      plain_english: `${message} ${QFAO_DISCLAIMER}`,
+      cost_time_implication: 'Contact local council for detailed flood mapping. A hydraulics report ($4,000–$8,000) may be required before subdivision can proceed.',
+      overlays: data.features.map(f => ({
+        sub_name:   f.attributes.SUB_NAME   || null,
+        sub_number: f.attributes.SUB_NUMBER || null,
+        qra_supply: f.attributes.QRA_SUPPLY || null
+      })),
+      has_river_flood: true,
+      has_overland_flow: false,
+      highest_category: null,
+      source: 'qfao',
+      disclaimer: QFAO_DISCLAIMER
+    })
+  } catch (err) {
+    console.error('check-flood QFAO error:', err.message)
+    return res.status(500).json({ error: 'Flood check failed', check: 'flood', flag: 'AMBER' })
   }
 }
