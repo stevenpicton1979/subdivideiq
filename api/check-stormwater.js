@@ -74,10 +74,10 @@ module.exports = async (req, res) => {
     if (!hasData) {
       return res.json({
         check: 'stormwater',
-        status: 'UNKNOWN',
-        flag: 'AMBER',
-        message: 'Stormwater pipe data not yet loaded for this area — full Brisbane load pending',
-        plain_english: 'Stormwater infrastructure data not available for this suburb yet. Run the full pipe load (scripts/load-sw-pipes.js) to enable this check.',
+        flag: 'GREY',
+        status: 'NOT_AVAILABLE',
+        message: 'Stormwater infrastructure data not available for this council area.',
+        plain_english: 'We don\'t currently hold stormwater pipe data for this area. This check has been skipped — it does not affect your GREEN/AMBER/RED result.',
         cost_time_implication: null,
         nearest_pipe: null,
         nearest_flow_path: null

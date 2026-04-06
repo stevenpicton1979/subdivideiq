@@ -71,10 +71,10 @@ module.exports = async (req, res) => {
       acidsulfate:   acidResult
     }
 
-    // Aggregate flags
+    // Aggregate flags — GREY means data not available, treated as neutral (excluded from counts)
     const flags = Object.values(checks)
       .map(c => c?.flag)
-      .filter(Boolean)
+      .filter(f => f && f !== 'GREY')
 
     const redCount = flags.filter(f => f === 'RED').length
     const amberCount = flags.filter(f => f === 'AMBER').length
@@ -116,7 +116,8 @@ module.exports = async (req, res) => {
         summary: overallSummary,
         red_count: redCount,
         amber_count: amberCount,
-        green_count: flags.filter(f => f === 'GREEN').length
+        green_count: flags.filter(f => f === 'GREEN').length,
+        grey_count: Object.values(checks).filter(c => c?.flag === 'GREY').length
       },
       checks,
       what_to_do_next: consultantSequence,
@@ -292,7 +293,7 @@ function buildCostRange(checks, overallFlag) {
   if (checks.elevation?.slope_class === 'STEEP') {
     low += 3000; high += 6000
   }
-  if (checks.stormwater?.pipe_flag === 'AMBER') {
+  if (checks.stormwater?.flag !== 'GREEN' && checks.stormwater?.flag !== 'GREY') {
     low += 5000; high += 30000
   }
 
