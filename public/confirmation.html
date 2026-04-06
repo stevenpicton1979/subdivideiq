@@ -233,19 +233,20 @@
       fetch('/api/report-status?session_id=' + encodeURIComponent(sessionId))
         .then(r => r.json())
         .then(data => {
-          if (data.status === 'PENDING' || !data.status) {
+          if (data.status === 'GREEN' || data.status === 'AMBER' || data.status === 'RED') {
+            // Report complete — render result
+            steps.forEach(id => markStep(id, 'done'))
+            setTimeout(() => showResult(data), 400)
+          } else if (data.status === 'ERROR') {
+            showError('We encountered an error generating your report. Please contact us.')
+          } else {
+            // PENDING or unknown — keep polling
             pollCount++
             if (pollCount >= MAX_POLLS) {
               showError('Report generation is taking longer than expected. Please check your email in a few minutes or contact us.')
             } else {
               setTimeout(pollStatus, 5000)
             }
-          } else if (data.status === 'ERROR') {
-            showError('We encountered an error generating your report. Please contact us.')
-          } else {
-            // Mark all steps done
-            steps.forEach(id => markStep(id, 'done'))
-            setTimeout(() => showResult(data), 400)
           }
         })
         .catch(() => {
