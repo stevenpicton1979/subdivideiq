@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
       runCheck('check-character',     { lat, lng }, req),
       runCheck('check-lotsize',       { lat, lng, geom_geojson, area_m2, min_lot_size_m2: minLot }, req),
       runCheck('check-contaminated',  { lat, lng }, req),
-      runCheck('check-infrastructure',{ lat, lng, suburb }, req),
+      runCheck('check-infrastructure',{ lat, lng, suburb, council: zoneResult?.council }, req),
       runCheck('check-easements',     { lat, lng }, req),
       runCheck('check-acidsulfate',   { lat, lng }, req)
     ])

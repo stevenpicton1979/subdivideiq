@@ -40,8 +40,24 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { lat, lng, suburb, zone_code } = req.body || {}
+  const { lat, lng, suburb, zone_code, council } = req.body || {}
 
+  // Non-BCC councils: return a generic estimate — each council sets its own ICR
+  if (council && council !== 'brisbane') {
+    return res.json({
+      check: 'infrastructure',
+      flag: 'AMBER',
+      status: 'ESTIMATED',
+      message: 'Infrastructure charges vary by council and lot type. Contact your local council for current rates.',
+      plain_english: 'Infrastructure charges are a mandatory council levy on new lots. Rates differ by council — Gold Coast, Moreton Bay, Sunshine Coast and others each set their own charges. Contact your council or a town planner for a current estimate before budgeting.',
+      cost_time_implication: 'Typically $15,000–$40,000 per new lot depending on council and location — confirm before committing.',
+      estimated_charge_per_lot: null,
+      charge_area: null,
+      charge_source: 'Contact local council for current Infrastructure Charges Resolution'
+    })
+  }
+
+  // BCC: use ICR schedule
   const chargeArea    = getChargeArea(suburb)
   const areaSchedule  = CHARGES.charge_areas[chargeArea]
   const chargePerLot  = areaSchedule?.residential_per_additional_lot?.low_density_house

@@ -74,7 +74,13 @@ module.exports = async (req, res) => {
     let flag = 'AMBER'
     let message = ''
 
-    if (minLot && lotArea) {
+    // Special case: Innovation zone (Gold Coast) — residential subdivision not primary use
+    if (row.zone_code === 'Innovation' && row.council === 'goldcoast') {
+      status = 'RESTRICTED'
+      flag = 'AMBER'
+      splitViable = false
+      message = 'This lot is zoned Innovation — intended for knowledge industries, research and technology uses. Residential subdivision is not a primary use and would require a permit. Speak to a Gold Coast town planner before proceeding.'
+    } else if (minLot && lotArea) {
       // Thresholds based on total lot area vs minimum lot size:
       //   GREEN  — lotArea > minLot * 2.1  (both halves clearly above minimum)
       //   AMBER  — lotArea >= minLot * 1.5 (marginal — town planner can often find a path)
@@ -97,11 +103,15 @@ module.exports = async (req, res) => {
       message = `Minimum lot size for ${row.zone_name} is ${minLot}m²`
     }
 
+    // Ensure plain_english is never empty
+    const plainEnglish = message ||
+      'Zone rules exist for this lot but subdivision viability could not be automatically determined. A town planner can confirm whether a split is permitted under the current planning scheme.'
+
     return res.json({
       check: 'zone',
       status,
       flag,
-      message,
+      message: plainEnglish,
       zone_code: row.zone_code,
       zone_name: row.zone_name,
       zone_category: row.zone_category,
@@ -117,7 +127,7 @@ module.exports = async (req, res) => {
       key_rules: row.key_rules,
       notes: row.notes,
       split_viable: splitViable,
-      plain_english: message,
+      plain_english: plainEnglish,
       cost_time_implication: null
     })
   } catch (err) {
