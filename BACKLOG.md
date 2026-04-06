@@ -224,6 +224,146 @@ Resolved 6 April 2026. Decision: live DCDB API (spatial-gis.information.qld.gov.
 
 ---
 
+## Sprint 6 — Stormwater expansion: 6 non-BCC councils [ ]
+
+**Goal:** Replace GREY/NOT_AVAILABLE stormwater result for Gold Coast, Moreton Bay, Sunshine Coast, Ipswich, Logan and Redland with live nearest-pipe queries. Same logic as existing BCC check — return distance and pipe size where available.
+
+**Approach:** Realtime ArcGIS/WFS queries at runtime. Do NOT load into Supabase — pipe networks are too large, change regularly, and only the nearest feature is needed.
+
+**Data sources (confirmed):**
+
+Gold Coast:
+- Drainage pipe: https://data-goldcoast.opendata.arcgis.com/datasets/68958fec01c844b1893c2df7bf1c7068_1
+- ArcGIS FeatureServer — query nearest pipe to point, return distance + diameter
+
+Moreton Bay:
+- Stormwater line: https://datahub-moretonbay.hub.arcgis.com/datasets/moretonbay::cmb-council-assets?layer=25
+- Moreton Bay DataHub ArcGIS — confirmed publicly queryable
+
+Sunshine Coast:
+- Stormwater Pipe (Council): https://data.sunshinecoast.qld.gov.au/datasets/scrcpublic::stormwater-pipe-council/about
+- ArcGIS Hub — confirmed publicly accessible
+
+Ipswich:
+- Drainage Mains: https://data.gov.au/data/dataset/ipswich-city-drainage-mains
+- WFS/GeoJSON via data.gov.au — slightly different format to ArcGIS, use WFS API link
+
+Logan:
+- Check: https://data-logancity.opendata.arcgis.com for a drainage/stormwater pipe layer
+- Water asset data confirmed exists — verify stormwater pipe layer specifically before building
+
+Redland:
+- Asset mapping MapServer: https://gis.redland.qld.gov.au/arcgis/rest/services/assets/a_asset_mapping/MapServer
+- Same server used for Redland zone data in Sprint 13 — stormwater layer confirmed in service
+
+**Implementation:**
+1. In api/check-stormwater.js, detect council from the zone lookup result
+2. Route to the appropriate council's ArcGIS/WFS endpoint based on council value
+3. Query nearest pipe within 150m of the lat/lng point
+4. Return same response shape as BCC: { flag, distance_m, pipe_diameter_mm }
+5. If council ArcGIS query fails or times out, return GREY gracefully — do not crash
+6. Add all 6 council endpoints to CLAUDE.md trusted domains
+
+**Tests:**
+- Gold Coast: known address in Gold Coast LDR zone — verify stormwater returns distance not GREY
+- Moreton Bay: 1 Anzac Ave Redcliffe — verify result
+- Sunshine Coast: 1 Duporth Ave Maroochydore — verify result
+- Ipswich: known Ipswich residential address — verify result
+- Logan: known Logan residential address — verify result
+- Redland: known Redland residential address — verify result
+
+---
+
+## Sprint 7 — Sewer proximity check: Gold Coast, Logan, Redland [ ]
+
+**Goal:** Add sewer proximity as a new feasibility check. Sewer connection distance is a major cost driver for subdivision — a 50m connection vs 5m can be $10,000–$30,000 difference. Currently not checked for any council.
+
+**Approach:** Realtime ArcGIS queries. BCC sewer data not publicly available (Urban Utilities restriction). Gold Coast, Logan, Redland confirmed available. Moreton Bay, Sunshine Coast, Ipswich covered by Urban Utilities — API access unconfirmed, return GREY for these.
+
+**Data sources (confirmed):**
+
+Gold Coast:
+- Sewer Pipe Non Pressure: https://data-goldcoast.opendata.arcgis.com/datasets/ffa11b9070484df3b5bef5d1e4592a8e_1
+- Sewer Pipe Pressure: https://data-goldcoast.opendata.arcgis.com/datasets/2d448614ede743edaa09aeb7036a7d4f_1
+- Query both layers, return nearest
+
+Logan:
+- Logan Water Asset Location Data: https://data-logancity.opendata.arcgis.com/maps/d348c07f3a844b3b990d47626b73dc15
+- Verify sewer pipe layer exists within this service before building
+
+Redland:
+- Same asset MapServer as stormwater: https://gis.redland.qld.gov.au/arcgis/rest/services/assets/a_asset_mapping/MapServer
+- Sewer layer confirmed in service description
+
+**Response shape:**
+{ flag, distance_m, note }
+- GREEN: sewer within 30m
+- AMBER: sewer 30–100m ("Connection may require extended pipe run — budget $5,000–$20,000")
+- GREY: data not available for this council ("Contact council for sewer connection point — distance drives cost significantly")
+
+**Not covered yet (return GREY):**
+- Brisbane (Urban Utilities restriction)
+- Moreton Bay, Sunshine Coast, Ipswich (Urban Utilities — investigate API access separately)
+
+**Implementation:**
+1. Create api/check-sewer.js — new check file, same pattern as check-stormwater.js
+2. Add to feasibility.js parallel checks
+3. Add CHECK_LABELS entry in generate-pdf.js and confirmation.html
+4. Add to buildConsultantSequence: if sewer AMBER → note in civil engineer step "confirm sewer connection point and distance before committing to lot layout"
+
+---
+
+## Sprint 8 — Vegetation protection overlay: Brisbane [ ]
+
+**Goal:** Check if the lot has BCC protected vegetation — Significant Urban Vegetation (SUV), Significant Native Vegetation (SNV), or Waterway/Wetland Vegetation. A protected tree in the rear lot area can cost $5,000–$50,000 to deal with, require an arborist report as a DA condition, or prevent a viable lot configuration entirely.
+
+**Approach:** Realtime ArcGIS point-in-polygon query against BCC open data layers. Brisbane only — other councils have different regimes.
+
+**Data sources (all confirmed via data.brisbane.qld.gov.au and QLD Open Data):**
+- Significant Urban Vegetation: BCC City Plan 2014 open data ArcGIS layer
+- Significant Native Vegetation: BCC City Plan 2014 open data ArcGIS layer
+- Waterway and Wetland Vegetation: BCC Natural Assets Local Law 2003 layer
+
+**Note:** Recently protected vegetation (last 6 weeks) and VPOs on development conditions are NOT included in these datasets. Report must include this caveat.
+
+**Response shape:**
+- RED: waterway/wetland vegetation overlaps lot — clearing likely refused
+- AMBER: SUV or SNV present — arborist report required as DA condition, tree removal permit needed
+- GREEN: no protected vegetation mapped on lot
+- GREY: non-Brisbane address — not checked
+
+**Disclaimer to include:** "This check reflects mapped protected vegetation only. Recently protected trees and VPOs attached to development conditions are not included. Use BCC's Protected Vegetation Online Enquiry Tool to obtain a complete property report before proceeding."
+
+**Implementation:**
+1. Create api/check-vegetation.js
+2. Query all three BCC ArcGIS layers in parallel — point-in-polygon
+3. Worst result wins (RED > AMBER > GREEN)
+4. Add to feasibility.js, generate-pdf.js, confirmation.html
+5. Add to consultant sequence: if vegetation AMBER/RED → arborist comes before town planner ("A protected tree assessment must inform the lot layout before a planner can assess the DA")
+
+---
+
+## Sprint 9 — Road frontage calculation [ ]
+
+**Goal:** Calculate street frontage width from existing parcel geometry and flag if insufficient for a battle-axe (rear access) lot. Minimum frontage for a battle-axe handle in most SEQ councils is 3m–6m depending on zone. A lot with 10m frontage can achieve this easily; a lot with 6m frontage cannot fit a driveway AND a rear lot handle simultaneously.
+
+**Approach:** Pure code — no new data source needed. Parcel boundary geometry already available from BCC Supabase load and DCDB API for non-BCC. Calculate the boundary segment(s) adjacent to the road and return the total frontage width.
+
+**Implementation:**
+1. In api/check-parcel.js (or a new api/check-frontage.js), use the parcel polygon geometry returned by the zone/parcel lookup
+2. Identify the road-facing boundary — longest boundary segment that faces the street (use bearing from centroid to boundary midpoint vs street direction as a heuristic, or use the known road geometry if available)
+3. Calculate length of that segment in metres
+4. Return: { frontage_m, flag, note }
+   - GREEN: frontage ≥ 15m ("Sufficient frontage for a standard battle-axe handle")
+   - AMBER: frontage 8–15m ("Tight frontage — surveyor must confirm handle width is achievable within setback requirements")
+   - RED: frontage < 8m ("Very tight frontage — rear lot access handle may not be achievable. Engage a surveyor before proceeding.")
+5. Add to feasibility.js, generate-pdf.js, confirmation.html
+6. Add to consultant sequence: if frontage RED → surveyor before town planner ("Confirm access handle is geometrically achievable before spending on planning")
+
+**Note:** Frontage calculation from polygon geometry is an approximation — always disclaim as indicative. The surveyor will confirm exact dimensions.
+
+---
+
 ## FUTURE SPRINTS (do not build yet)
 
 ### [ ] F1: Building works pre-screen
