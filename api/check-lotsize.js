@@ -21,7 +21,20 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end()
 
   const { lat, lng, geom_geojson, area_m2, min_lot_size_m2 } = req.body || {}
-  if (!area_m2) return res.status(400).json({ error: 'area_m2 required' })
+
+  // Graceful fallback when parcel area is unavailable (DCDB miss or outside coverage)
+  if (!area_m2) {
+    return res.json({
+      check: 'lotsize',
+      flag: 'GREY',
+      status: 'NOT_AVAILABLE',
+      message: 'Parcel area could not be determined for this address.',
+      plain_english: 'Parcel area could not be determined for this address',
+      reason: 'Parcel area could not be determined for this address',
+      cost_time_implication: null,
+      split_viable: null
+    })
+  }
 
   const minLot = min_lot_size_m2 || 600 // BCC LDR default
   const totalArea = parseFloat(area_m2)

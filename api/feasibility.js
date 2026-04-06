@@ -266,13 +266,17 @@ function buildConsultantSequence(checks, overallFlag) {
     urgency: 'After all technical reports are complete'
   })
 
+  const council = checks.zone?.council || null
+  const isBcc   = council === 'brisbane'
   const infraCharge = checks.infrastructure?.estimated_charge_per_lot
     ? '$' + checks.infrastructure.estimated_charge_per_lot.toLocaleString('en-AU')
-    : '$28,000–$32,000'
+    : isBcc ? '$28,000–$32,000' : '$15,000–$40,000'
   steps.push({
     step: steps.length + 1,
-    who: 'Infrastructure charges (BCC)',
-    why: 'BCC levies infrastructure charges for each new lot created — this is a mandatory cost, not optional',
+    who: isBcc ? 'Infrastructure charges (BCC ICR)' : 'Infrastructure charges (contact your council)',
+    why: isBcc
+      ? 'BCC levies infrastructure charges for each new lot created — this is a mandatory cost, not optional'
+      : 'Your council levies infrastructure charges for each new lot created — rates differ by council. Confirm the current amount with your council or town planner before budgeting.',
     cost: `${infraCharge} per additional lot (payable at DA approval)`,
     urgency: 'Factor into your financial model before engaging any consultants'
   })

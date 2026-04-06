@@ -212,33 +212,33 @@ Resolved 6 April 2026. Decision: live DCDB API (spatial-gis.information.qld.gov.
 # SubdivideIQ Backlog Additions — 6 April 2026
 # Add these to /c/dev/subdivideiq/BACKLOG.md
 
-## Post-launch bug fixes [ ]
+## Post-launch bug fixes [x] COMPLETE
 
-### BUG-1: Confirmation page hangs after payment [ ]
+### BUG-1: Confirmation page hangs after payment [x]
 - Symptom: /confirmation.html spins indefinitely after successful payment
 - Report generates and emails correctly — UI polling never resolves
 - Fix: check confirmation.html polling logic — likely waiting for a status flag
   that never gets set in subdivide_reports table, or polling wrong field
 
-### BUG-2: lotsize error when DCDB parcel lookup fails [ ]
+### BUG-2: lotsize error when DCDB parcel lookup fails [x]
 - Symptom: lotsize check returns `{"error": "area_m2 required"}` when address
   is outside DCDB coverage or parcel lookup returns null
 - Fix: feasibility.js should handle null area_m2 gracefully — return GREY/NOT_AVAILABLE
   for lotsize check rather than crashing, same pattern as stormwater GREY
 
-### BUG-3: Infrastructure charge defaults to BCC when council is null [ ]
+### BUG-3: Infrastructure charge defaults to BCC when council is null [x]
 - Symptom: when zone lookup fails (council = null), infrastructure check returns
   BCC rates ($28,730) instead of generic non-BCC message
 - Fix: in check-infrastructure.js, treat null council same as non-BCC council —
   return generic "contact your council" response
 
-### BUG-4: what_to_do_next step 4 hardcoded as BCC [ ]
+### BUG-4: what_to_do_next step 4 hardcoded as BCC [x]
 - Symptom: "Infrastructure charges (BCC)" appears in next steps for all addresses
   including Gold Coast, Moreton Bay etc.
 - Fix: make next steps infrastructure item council-aware — use generic language
   for non-BCC councils
 
-### BUG-5: Stripe webhooks firing for wrong product [ ]
+### BUG-5: Stripe webhooks firing for wrong product [x]
 - Symptom: both subdivide-live-webhook and whatcanibuild-destination fire on every
   checkout.session.completed event across the whole Stripe account
 - Risk: if WhatCanIBuild webhook processes a SubdivideIQ payment it sends wrong email
@@ -249,7 +249,7 @@ Resolved 6 April 2026. Decision: live DCDB API (spatial-gis.information.qld.gov.
   Recommended: option (a) — add `product: 'subdivideiq'` to session metadata in
   checkout.js, check in webhook.js and reject if product !== 'subdivideiq'
 
-### BUG-6: UTF-8 encoding — verify fix [ ]
+### BUG-6: UTF-8 encoding — verify fix [x]
 - The vercel.json charset fix was deployed — recheck API responses for clean
   em-dashes and m² symbols. Run:
   curl -s -X POST https://subdivide.whatcanibuild.com.au/api/feasibility \

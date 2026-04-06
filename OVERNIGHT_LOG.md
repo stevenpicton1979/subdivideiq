@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-04-06 — Post-launch bug fixes BUG-1 through BUG-6
+
+### BUG-1: Confirmation page hangs after payment [x] FIXED — 2026-04-06
+**Root cause:** Stripe retried the webhook (no 200 within 30s) → duplicate rows inserted
+for same `stripe_session_id`. `report-status.js` used `.single()` which throws PostgREST
+PGRST116 when >1 row exists → every poll returned `{ status: 'PENDING' }` forever.
+**Fix 1 (report-status.js):** Replaced `.single()` with `.order('created_at', { ascending: false }).limit(1)` — takes array result, reads `[0]`.
+**Fix 2 (webhook.js):** Added deduplication check before processReport — if a non-PENDING row
+already exists for this session_id, log and return `{ received: true }` without processing.
+
+### BUG-2: lotsize error when DCDB parcel lookup fails [x] FIXED — 2026-04-06
+**Root cause:** `check-lotsize.js` line 24 returned `400 { error: 'area_m2 required' }` when area_m2 was null/undefined (DCDB miss or outside coverage).
+**Fix:** Return `{ flag: 'GREY', status: 'NOT_AVAILABLE', ... }` instead — mirrors stormwater GREY pattern. GREY is excluded from RED/AMBER counts in feasibility aggregator.
+
+### BUG-3: Infrastructure charge defaults to BCC when council is null [x] FIXED — 2026-04-06
+**Root cause:** Guard condition was `if (council && council !== 'brisbane')` — null council fell through to BCC rates.
+**Fix:** Changed to `if (!council || council !== 'brisbane')` — null/undefined treated as non-BCC, returns generic "contact your council" AMBER response.
+
+### BUG-4: what_to_do_next step 4 hardcoded as "BCC" [x] FIXED — 2026-04-06
+**Root cause:** `buildConsultantSequence` in `feasibility.js` hardcoded `who: 'Infrastructure charges (BCC)'` regardless of council.
+**Fix:** Reads `checks.zone?.council` — BCC gets "Infrastructure charges (BCC ICR)", all others get "Infrastructure charges (contact your council)" with appropriate cost range and explanation.
+
+### BUG-5: Stripe webhooks firing for wrong product [x] FIXED — 2026-04-06
+**Fix 1 (checkout.js):** Added `product: 'subdivideiq'` to Stripe session metadata.
+**Fix 2 (webhook.js):** Added early exit if `session.metadata?.product !== 'subdivideiq'` — logs warning and returns `{ received: true, ignored: true }` without processing.
+
+### BUG-6: UTF-8 encoding — verify fix [x] VERIFIED CLEAN — 2026-04-06
+**Test:** `curl -s -X POST https://subdivideiq.vercel.app/api/feasibility -H "Content-Type: application/json" -d '{"lat":-27.5107,"lng":153.1015,"area_m2":1086}'`
+**Result:** Clean `m²` confirmed in response (not `\u00c2\u00b2`). Double-encoded check: false. vercel.json charset fix working correctly. No code changes needed.
+
+### Smoke tests
+**npm test:** 6/6 PASS ✅
+
+---
+
 ## 2026-04-05 — ARCH-1 Resolution + check-parcel wired into feasibility
 
 ### ARCH-1 Decision

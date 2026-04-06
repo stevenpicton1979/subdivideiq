@@ -75,12 +75,32 @@ module.exports = async (req, res) => {
   }
 
   const session       = event.data.object
+
+  // Scope to SubdivideIQ payments only — reject events from other products
+  // (e.g. WhatCanIBuild) that share the same Stripe account
+  if (session.metadata?.product !== 'subdivideiq') {
+    console.log('[webhook] Ignoring non-subdivideiq payment:', session.id, 'product:', session.metadata?.product)
+    return res.json({ received: true, ignored: true })
+  }
   const sessionId     = session.id
   const customerEmail = session.customer_details?.email || session.metadata?.email
   const meta          = session.metadata || {}
   const { address, lat, lng } = meta
 
   console.log('[webhook] Processing:', sessionId, 'address:', address)
+
+  // Deduplication: if a non-PENDING row already exists for this session, Stripe is
+  // retrying a webhook we already processed. Skip to avoid double-emails/charges.
+  const db = getSupabase()
+  const { data: existing } = await db
+    .from('subdivide_reports')
+    .select('result')
+    .eq('stripe_session_id', sessionId)
+    .limit(1)
+  if (existing?.[0]?.result && existing[0].result !== 'PENDING') {
+    console.log('[webhook] Duplicate webhook for', sessionId, '— already processed, skipping')
+    return res.json({ received: true })
+  }
 
   // Run full pipeline before responding — Stripe allows 30s.
   // Race against 25s timeout so we always respond within Stripe's window.

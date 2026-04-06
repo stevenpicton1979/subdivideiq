@@ -57,6 +57,7 @@ module.exports = async (req, res) => {
       success_url: `${BASE_URL}/confirmation.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${BASE_URL}/`,
       metadata: {
+        product: 'subdivideiq',
         address,
         email,
         lat:  lat  ? String(lat)  : '',

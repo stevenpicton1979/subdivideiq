@@ -42,8 +42,8 @@ module.exports = async (req, res) => {
 
   const { lat, lng, suburb, zone_code, council } = req.body || {}
 
-  // Non-BCC councils: return a generic estimate — each council sets its own ICR
-  if (council && council !== 'brisbane') {
+  // Non-BCC councils (or unknown council): return a generic estimate — each council sets its own ICR
+  if (!council || council !== 'brisbane') {
     return res.json({
       check: 'infrastructure',
       flag: 'AMBER',

@@ -23,12 +23,16 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_SERVICE_KEY
   )
 
-  const { data, error } = await db
+  // Use limit(1) + order instead of .single() — .single() throws PGRST116 if Stripe
+  // retried the webhook and created duplicate rows for the same session_id.
+  const { data: rows, error } = await db
     .from('subdivide_reports')
     .select('result, address, flags, created_at')
     .eq('stripe_session_id', session_id)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
 
+  const data = rows?.[0]
   if (error || !data) {
     return res.json({ status: 'PENDING' })
   }
