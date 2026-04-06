@@ -130,7 +130,7 @@ Start Claude Code in the subdivideiq repo and say:
 - PDF: 10,770 bytes, valid %PDF ✅
 - Full pipeline: PASS ✅
 
-### [ ] S4-4: Switch Stripe to live mode
+### [x] S4-4: Switch Stripe to live mode
 - Confirm Vercel production env has live Stripe keys
 - Run one live test payment end-to-end with real card
 
@@ -147,9 +147,9 @@ Start Claude Code in the subdivideiq repo and say:
 ## SPRINT 4 TESTS
 
 ### [ ] S4-T: Pre-launch checklist — all must pass before announcing
-1. Full browser end-to-end payment with real card (Stripe live mode) ✅ PENDING
+1. Full browser end-to-end payment with real card (Stripe live mode) ✅ DONE
 2. Full Brisbane parcel + pipe data loaded — pending ARCH-1 decision
-3. Live Stripe payment processed ✅ PENDING
+3. Live Stripe payment processed ✅ DONE
 4. Jest smoke tests passing ✅
 5. PDF quality reviewed ✅
 6. Mobile responsive frontend ✅
@@ -257,6 +257,12 @@ Resolved 6 April 2026. Decision: live DCDB API (spatial-gis.information.qld.gov.
     -d '{"lat":-27.4975,"lng":153.0211,"address":"6 Glenheaton Court, Carindale"}' \
     | grep -o '.\{20\}m².\{20\}'
   Should show clean ² not \u00c2\u00b2
+
+### BUG-1B: Confirmation page JS crash — stepIdx ReferenceError [x]
+- Symptom: confirmation.html loaded but pollStatus() never fired — no network requests made
+- Root cause: stepIdx and steps array declared with let AFTER the if(!sessionId) block that calls animateSteps() — JavaScript temporal dead zone caused ReferenceError on page load
+- Fix: moved stepIdx and steps declarations to before the if(!sessionId) block
+- Confirmed: page now renders AMBER result correctly in production (6 April 2026)
 
 ---
 
