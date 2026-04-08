@@ -482,6 +482,12 @@ detailed flood mapping."
 
 ---
 
+## Known Data Limitations
+
+- [ ] Add flood data disclaimer to report: "Flood risk is based on BCC City Plan 2014 flood planning area overlays. Some areas near flood boundaries may not be formally classified despite proximity to flood zones. Always verify with council."
+
+---
+
 ## Reddit launch posts — NOT YET POSTED [ ]
 
 ### r/Brisbane post:
